@@ -1,0 +1,9 @@
+[package]
+name = "hyperchain-da"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+zksync_object_store = { package = "zksync_object_store", git = "https://github.com/matter-labs/zksync-era.git", rev = "47e0a16a99cad735be06aec163a4e39f65a91d9f" }
+zksync_config = { package = "zksync_config", git = "https://github.com/matter-labs/zksync-era.git", rev = "47e0a16a99cad735be06aec163a4e39f65a91d9f" }
+zksync_types = { package = "zksync_types", git = "https://github.com/matter-labs/zksync-era.git", rev = "47e0a16a99cad735be06aec163a4e39f65a91d9f" }
