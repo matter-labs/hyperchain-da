@@ -1,5 +1,5 @@
 [package]
-name = "hyperchain-da"
+name = "hyperchain_da"
 version = "0.1.0"
 edition = "2021"
 
