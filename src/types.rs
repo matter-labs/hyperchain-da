@@ -1,4 +1,9 @@
-pub(crate) type Error = String;
+use zksync_object_store::ObjectStoreError;
+
+pub enum DataAvailabilityError {
+    GCSClientError(ObjectStoreError)
+    // TODO: add errors for different client implementations here
+}
 
 #[derive(Default)]
 pub struct DispatchResponse {

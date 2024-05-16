@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-trait = "0.1"
+
 zksync_object_store = { package = "zksync_object_store", git = "https://github.com/matter-labs/zksync-era.git", rev = "710855a5eefdb4dc7d716b555741de7e49f37dae" }
 zksync_config = { package = "zksync_config", git = "https://github.com/matter-labs/zksync-era.git", rev = "710855a5eefdb4dc7d716b555741de7e49f37dae" }
 zksync_types = { package = "zksync_types", git = "https://github.com/matter-labs/zksync-era.git", rev = "710855a5eefdb4dc7d716b555741de7e49f37dae" }
