@@ -42,7 +42,7 @@ impl DataAvailabilityInterface for GCSDAClient {
         })
     }
 
-    fn get_inclusion_data(&self, _: Vec<u8>) -> Result<InclusionData, ObjectStoreError> {
+    async fn get_inclusion_data(&self, _: Vec<u8>) -> Result<InclusionData, ObjectStoreError> {
         return Ok(InclusionData::default());
     }
 }

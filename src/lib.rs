@@ -8,12 +8,12 @@ pub mod clients;
 mod types;
 
 pub trait DataAvailabilityInterface: Sync + Send + fmt::Debug {
-    fn dispatch_blob(
+    async fn dispatch_blob(
         &self,
         batch_number: L1BatchNumber,
         data: Vec<u8>,
     ) -> Result<DispatchResponse, types::Error>;
-    fn get_inclusion_data(&self, blob_id: Vec<u8>) -> Result<InclusionData, types::Error>;
+    async fn get_inclusion_data(&self, blob_id: Vec<u8>) -> Result<InclusionData, types::Error>;
 }
 
 pub fn new_da_client(config: DADispatcherConfig) -> Box<dyn DataAvailabilityInterface> {
