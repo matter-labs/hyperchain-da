@@ -1,7 +1,7 @@
 use std::fmt;
 
 use zksync_types::L1BatchNumber;
-use zksync_config::configs::da_dispatcher::DataAvailabilityMode;
+use zksync_config::configs::{da_dispatcher::{DataAvailabilityMode, DADispatcherConfig}};
 use crate::types::{DispatchResponse, InclusionData};
 
 pub mod clients;
@@ -16,7 +16,7 @@ pub trait DataAvailabilityInterface: Sync + Send + fmt::Debug {
     fn get_inclusion_data(&self, blob_id: Vec<u8>) -> Result<InclusionData, types::Error>;
 }
 
-pub fn new_da_client(config: zksync_config::DADispatcherConfig) -> Box<dyn DataAvailabilityInterface> {
+pub fn new_da_client(config: DADispatcherConfig) -> Box<dyn DataAvailabilityInterface> {
     match config.mode {
         DataAvailabilityMode::GCS(config) => {
             Box::new(clients::gcs::GCSDAClient::new(config))
