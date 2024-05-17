@@ -1,8 +1,7 @@
 use std::{fmt};
 use async_trait::async_trait;
+use crate::clients::celestia::CelestiaClient;
 
-use zksync_types::L1BatchNumber;
-use zksync_config::configs::{da_dispatcher::{DataAvailabilityMode, DADispatcherConfig}};
 use crate::types::{DispatchResponse, InclusionData};
 
 pub mod clients;
@@ -12,26 +11,16 @@ mod types;
 pub trait DataAvailabilityInterface: Sync + Send + fmt::Debug {
     async fn dispatch_blob(
         &self,
-        batch_number: L1BatchNumber,
+        batch_number: u32,
         data: Vec<u8>,
     ) -> Result<DispatchResponse, types::DataAvailabilityError>;
     async fn get_inclusion_data(&self, blob_id: Vec<u8>) -> Result<InclusionData, types::DataAvailabilityError>;
 }
 
-pub async fn new_da_client(config: DADispatcherConfig) -> Box<dyn DataAvailabilityInterface> {
-    match config.mode {
-        DataAvailabilityMode::GCS(config) => {
-            Box::new(clients::gcs::GCSDAClient::new(config).await)
-        }
-        DataAvailabilityMode::NoDA => {
-            // TODO: Implement NoDA client
-            panic!("NoDA client is not implemented")
-        }
-        DataAvailabilityMode::DALayer(config) => {
-            match config.name.as_str() {
-                // "some_da_layer" => Box::new(), // TODO: Implement some_da_layer client
-                _ => panic!("Unknown DA layer")
-            }
-        }
+pub async fn new_da_layer_client(da_layer_name: String, private_key: Vec<u8>) -> Box<dyn DataAvailabilityInterface> {
+    match da_layer_name.to_lowercase().as_ref() {
+        "celestia" => Box::new(CelestiaClient::new(private_key)),
+        // "some_da_layer" => Box::new(), // TODO: Implement some_da_layer client
+        _ => panic!("Unknown DA layer")
     }
 }
