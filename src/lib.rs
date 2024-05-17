@@ -5,7 +5,7 @@ use crate::clients::celestia::CelestiaClient;
 use crate::types::{DispatchResponse, InclusionData};
 
 pub mod clients;
-mod types;
+pub mod types;
 
 #[async_trait]
 pub trait DataAvailabilityInterface: Sync + Send + fmt::Debug {

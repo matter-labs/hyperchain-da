@@ -1,4 +1,4 @@
-pub(crate) type DataAvailabilityError = String;
+pub type DataAvailabilityError = String;
 
 #[derive(Default)]
 pub struct DispatchResponse {
