@@ -1,8 +1,4 @@
-pub enum DataAvailabilityError {
-    CelestiaError(String),
-    EigenError(String),
-    AvailError(String),
-}
+pub type DataAvailabilityError = String;
 
 #[derive(Default)]
 pub struct DispatchResponse {
