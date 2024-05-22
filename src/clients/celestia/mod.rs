@@ -24,7 +24,7 @@ impl DataAvailabilityInterface for CelestiaClient {
         todo!()
     }
 
-    async fn get_inclusion_data(&self, blob_id: Vec<u8>) -> Result<types::InclusionData, types::DataAvailabilityError> {
+    async fn get_inclusion_data(&self, blob_id: Vec<u8>) -> Result<Option<types::InclusionData>, types::DataAvailabilityError> {
         todo!()
     }
 }

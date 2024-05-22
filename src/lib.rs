@@ -14,7 +14,7 @@ pub trait DataAvailabilityInterface: Sync + Send + fmt::Debug {
         batch_number: u32,
         data: Vec<u8>,
     ) -> Result<DispatchResponse, types::DataAvailabilityError>;
-    async fn get_inclusion_data(&self, blob_id: Vec<u8>) -> Result<InclusionData, types::DataAvailabilityError>;
+    async fn get_inclusion_data(&self, blob_id: Vec<u8>) -> Result<Option<InclusionData>, types::DataAvailabilityError>;
 }
 
 pub async fn new_da_layer_client(da_layer_name: String, private_key: Vec<u8>) -> Box<dyn DataAvailabilityInterface> {
