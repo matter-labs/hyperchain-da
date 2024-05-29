@@ -5,6 +5,7 @@ use crate::types::{DispatchResponse, InclusionData};
 
 pub mod clients;
 pub mod types;
+pub mod config;
 
 /// Trait that defines the interface for the data availability layer clients.
 #[async_trait]
