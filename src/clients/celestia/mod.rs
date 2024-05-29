@@ -34,7 +34,7 @@ impl DataAvailabilityClient for CelestiaClient {
         todo!()
     }
 
-    fn name(&self) -> String {
+    fn name() -> String {
         "celestia".to_string()
     }
 }
