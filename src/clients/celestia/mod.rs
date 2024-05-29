@@ -30,7 +30,7 @@ impl DataAvailabilityClient for CelestiaClient {
         todo!()
     }
 
-    async fn get_inclusion_data(&self, blob_id: Vec<u8>) -> Result<Option<types::InclusionData>, anyhow::Error> {
+    async fn get_inclusion_data(&self, blob_id: String) -> Result<Option<types::InclusionData>, anyhow::Error> {
         todo!()
     }
 

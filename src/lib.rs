@@ -14,6 +14,7 @@ pub trait DataAvailabilityClient: Sync + Send + fmt::Debug {
         batch_number: u32,
         data: Vec<u8>,
     ) -> Result<DispatchResponse, anyhow::Error>;
-    async fn get_inclusion_data(&self, blob_id: Vec<u8>) -> Result<Option<InclusionData>, anyhow::Error>;
+
+    async fn get_inclusion_data(&self, blob_id: String) -> Result<Option<InclusionData>, anyhow::Error>;
     fn client_name(&self) -> String;
 }
