@@ -35,10 +35,6 @@ impl DataAvailabilityClient for CelestiaClient {
         todo!()
     }
 
-    fn client_name(&self) -> String {
-        "celestia".to_string()
-    }
-
     fn clone_boxed(&self) -> Box<dyn DataAvailabilityClient> {
         Box::new(self.clone())
     }
