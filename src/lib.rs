@@ -1,6 +1,5 @@
 use std::{fmt};
 use async_trait::async_trait;
-use crate::clients::celestia::CelestiaClient;
 
 use crate::types::{DispatchResponse, InclusionData};
 

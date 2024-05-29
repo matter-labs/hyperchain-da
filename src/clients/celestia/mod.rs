@@ -1,4 +1,4 @@
-pub(crate) mod config;
+pub mod config;
 
 use anyhow;
 use std::fmt::{Debug, Formatter};
