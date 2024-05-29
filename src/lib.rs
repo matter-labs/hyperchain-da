@@ -5,7 +5,6 @@ use crate::types::{DispatchResponse, InclusionData};
 
 pub mod clients;
 pub mod types;
-pub mod config;
 
 #[async_trait]
 pub trait DataAvailabilityClient: Sync + Send + fmt::Debug {
@@ -17,4 +16,11 @@ pub trait DataAvailabilityClient: Sync + Send + fmt::Debug {
 
     async fn get_inclusion_data(&self, blob_id: String) -> Result<Option<InclusionData>, anyhow::Error>;
     fn client_name(&self) -> String;
+    fn clone_boxed(&self) -> Box<dyn DataAvailabilityClient>;
+}
+
+impl Clone for Box<dyn DataAvailabilityClient> {
+    fn clone(&self) -> Box<dyn DataAvailabilityClient> {
+        self.clone_boxed()
+    }
 }

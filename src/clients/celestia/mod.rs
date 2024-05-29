@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use crate::{DataAvailabilityClient, types};
 use crate::clients::celestia::config::CelestiaConfig;
 
+#[derive(Clone)]
 pub struct CelestiaClient {
     light_node_url: String,
     private_key: String,
@@ -36,6 +37,10 @@ impl DataAvailabilityClient for CelestiaClient {
 
     fn client_name(&self) -> String {
         "celestia".to_string()
+    }
+
+    fn clone_boxed(&self) -> Box<dyn DataAvailabilityClient> {
+        Box::new(self.clone())
     }
 }
 
