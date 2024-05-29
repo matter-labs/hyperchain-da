@@ -1,1 +1,1 @@
-pub(crate) mod celestia;
+pub mod celestia;
