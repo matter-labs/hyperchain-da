@@ -33,6 +33,10 @@ impl DataAvailabilityClient for CelestiaClient {
     async fn get_inclusion_data(&self, blob_id: Vec<u8>) -> Result<Option<types::InclusionData>, anyhow::Error> {
         todo!()
     }
+
+    fn name(&self) -> String {
+        "celestia".to_string()
+    }
 }
 
 impl Debug for CelestiaClient {
