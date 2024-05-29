@@ -5,7 +5,7 @@ use crate::types::{DispatchResponse, InclusionData};
 
 pub mod clients;
 pub mod types;
-mod config;
+pub mod config;
 
 #[async_trait]
 pub trait DataAvailabilityClient: Sync + Send + fmt::Debug {
