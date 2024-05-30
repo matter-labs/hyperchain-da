@@ -3,8 +3,8 @@ use serde::Serialize;
 
 #[derive(Debug)]
 pub struct DAError {
-    error: anyhow::Error,
-    is_transient: bool,
+    pub error: anyhow::Error,
+    pub is_transient: bool,
 }
 
 impl Display for DAError {
