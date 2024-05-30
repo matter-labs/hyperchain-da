@@ -1,6 +1,5 @@
 pub mod config;
 
-use anyhow;
 use std::fmt::{Debug, Formatter};
 use async_trait::async_trait;
 use crate::{DataAvailabilityClient, types};
@@ -27,11 +26,11 @@ impl DataAvailabilityClient for CelestiaClient {
         &self,
         batch_number: u32,
         data: Vec<u8>,
-    ) -> Result<types::DispatchResponse, anyhow::Error> {
+    ) -> Result<types::DispatchResponse, types::DAError> {
         todo!()
     }
 
-    async fn get_inclusion_data(&self, blob_id: String) -> Result<Option<types::InclusionData>, anyhow::Error> {
+    async fn get_inclusion_data(&self, blob_id: String) -> Result<Option<types::InclusionData>, types::DAError> {
         todo!()
     }
 
