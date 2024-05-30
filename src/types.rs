@@ -1,5 +1,10 @@
 use serde::Serialize;
 
+pub struct DAError {
+    error: anyhow::Error,
+    is_transient: bool,
+}
+
 /// DispatchResponse is the response received from the DA layer after dispatching a blob.
 #[derive(Default)]
 pub struct DispatchResponse {
