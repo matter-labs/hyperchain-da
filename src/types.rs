@@ -14,6 +14,16 @@ impl Display for DAError {
     }
 }
 
+impl IsTransient for DAError {
+    fn is_transient(&self) -> bool {
+        self.is_transient
+    }
+}
+
+pub trait IsTransient {
+    fn is_transient(&self) -> bool;
+}
+
 impl error::Error for DAError {}
 
 /// DispatchResponse is the response received from the DA layer after dispatching a blob.
