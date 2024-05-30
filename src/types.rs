@@ -1,3 +1,4 @@
+use std::error;
 use std::fmt::Display;
 use serde::Serialize;
 
@@ -12,6 +13,8 @@ impl Display for DAError {
         write!(f, "DAError: {}, is_transient: {}", self.error, self.is_transient)
     }
 }
+
+impl error::Error for DAError {}
 
 /// DispatchResponse is the response received from the DA layer after dispatching a blob.
 #[derive(Default)]
