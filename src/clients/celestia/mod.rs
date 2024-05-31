@@ -37,6 +37,10 @@ impl DataAvailabilityClient for CelestiaClient {
     fn clone_boxed(&self) -> Box<dyn DataAvailabilityClient> {
         Box::new(self.clone())
     }
+
+    fn blob_size_limit(&self) -> usize {
+        1973786
+    }
 }
 
 impl Debug for CelestiaClient {

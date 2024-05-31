@@ -2,6 +2,7 @@ use std::error;
 use std::fmt::Display;
 use serde::Serialize;
 
+/// DAError is the error type returned by the DA clients.
 #[derive(Debug)]
 pub struct DAError {
     pub error: anyhow::Error,
@@ -20,6 +21,7 @@ impl IsTransient for DAError {
     }
 }
 
+/// Trait that defines whether an error is transient or not, i.e. if it is safe to retry the operation.
 pub trait IsTransient {
     fn is_transient(&self) -> bool;
 }
