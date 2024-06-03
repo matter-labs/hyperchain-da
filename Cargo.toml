@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-trait = "0.1"
-anyhow = "1"
-serde = { version = "1", features = ["derive"] }
+async-trait = "0.1.74"
+anyhow = "1.0.80"
+serde = { version = "1.0.189", features = ["derive"] }
+
+zksync_config = { package = "zksync_config", git = "https://github.com/matter-labs/zksync-era.git", rev = "e68d9d60638fe3bbff7cba3799f0a6975248cde0" }
+zksync_node_framework = { package = "zksync_node_framework", git = "https://github.com/matter-labs/zksync-era.git", rev = "e68d9d60638fe3bbff7cba3799f0a6975248cde0" }
+zksync_env_config = { package = "zksync_env_config", git = "https://github.com/matter-labs/zksync-era.git", rev = "e68d9d60638fe3bbff7cba3799f0a6975248cde0" }

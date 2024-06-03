@@ -1,4 +1,6 @@
 pub mod config;
+mod wiring_layer;
+mod resource;
 
 use std::fmt::{Debug, Formatter};
 use async_trait::async_trait;
@@ -14,7 +16,7 @@ pub struct CelestiaClient {
 impl CelestiaClient {
     pub fn new(config: CelestiaConfig) -> Self {
         Self {
-            light_node_url: config.light_node_url,
+            light_node_url: config.api_node_url,
             private_key: config.private_key,
         }
     }
