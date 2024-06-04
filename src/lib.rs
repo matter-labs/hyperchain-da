@@ -20,15 +20,16 @@ pub trait DataAvailabilityClient: Sync + Send + fmt::Debug {
     /// Fetches the inclusion data for a given blob_id.
     async fn get_inclusion_data(&self, blob_id: String) -> Result<Option<InclusionData>, DAError>;
 
-    /// Clones the client and wraps it in a Box.
-    fn clone_boxed(&self) -> Box<dyn DataAvailabilityClient>;
+    // NOTE: Removed this temporarily
+    // need a solution for lack of Clone trait on Lumina's celestia client
+    //fn clone_boxed(&self) -> Box<dyn DataAvailabilityClient>;
 
     /// Returns the maximum size of the blob (in bytes) that can be dispatched.
     fn blob_size_limit(&self) -> usize;
 }
 
-impl Clone for Box<dyn DataAvailabilityClient> {
+/*impl Clone for Box<dyn DataAvailabilityClient> {
     fn clone(&self) -> Box<dyn DataAvailabilityClient> {
         self.clone_boxed()
     }
-}
+}*/

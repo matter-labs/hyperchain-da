@@ -7,3 +7,6 @@ edition = "2021"
 async-trait = "0.1"
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
+celestia-rpc = "0.2.0"
+celestia-types = "0.2.0"
+ssz_rs = "0.9.0"
