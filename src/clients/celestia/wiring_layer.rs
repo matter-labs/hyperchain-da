@@ -11,11 +11,11 @@ use crate::clients::celestia::resource::CelestiaClientResource;
 use crate::DataAvailabilityClient;
 
 #[derive(Debug)]
-pub struct DataAvailabilityClientLayer {
+pub struct CelestiaWiringLayer {
     da_config: DADispatcherConfig,
 }
 
-impl DataAvailabilityClientLayer {
+impl CelestiaWiringLayer {
     pub fn new(
         da_config: DADispatcherConfig,
     ) -> Self {
@@ -26,7 +26,7 @@ impl DataAvailabilityClientLayer {
 }
 
 #[async_trait::async_trait]
-impl WiringLayer for DataAvailabilityClientLayer {
+impl WiringLayer for CelestiaWiringLayer {
     fn layer_name(&self) -> &'static str {
         "celestia_client_layer"
     }

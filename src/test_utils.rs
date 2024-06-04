@@ -68,17 +68,4 @@ impl EnvMutexGuard<'_> {
             env::set_var(variable_name, variable_value);
         }
     }
-
-    /// Removes the specified env vars.
-    pub fn remove_env(&mut self, var_names: &[&str]) {
-        for &var_name in var_names {
-            let variable_name: &OsStr = var_name.as_ref();
-            if !self.redefined_vars.contains_key(variable_name) {
-                let prev_value = env::var_os(variable_name);
-                self.redefined_vars
-                    .insert(variable_name.to_os_string(), prev_value);
-            }
-            env::remove_var(variable_name);
-        }
-    }
 }
