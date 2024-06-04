@@ -1,3 +1,3 @@
 pub mod config;
-mod wiring_layer;
-mod client;
+pub mod wiring_layer;
+pub mod client;
