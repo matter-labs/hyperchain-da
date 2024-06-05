@@ -11,8 +11,3 @@ serde = { version = "1", features = ["derive"] }
 zksync_node_framework = { package = "zksync_node_framework", git = "https://github.com/matter-labs/zksync-era.git", rev = "e2dddfe16640c4f2b1ce4d8de6134903a1751533" }
 zksync_env_config = { package = "zksync_env_config", git = "https://github.com/matter-labs/zksync-era.git", rev = "e2dddfe16640c4f2b1ce4d8de6134903a1751533" }
 zksync_da_client = { package = "zksync_da_client", git = "https://github.com/matter-labs/zksync-era.git", rev = "e2dddfe16640c4f2b1ce4d8de6134903a1751533" }
-
-[patch."https://github.com/matter-labs/zksync-era.git"]
-zksync_node_framework = { path = "../zksync-era/core/node/node_framework" }
-zksync_env_config = { path = "../zksync-era/core/lib/env_config" }
-zksync_da_client = { path = "../zksync-era/core/lib/da_client" }
