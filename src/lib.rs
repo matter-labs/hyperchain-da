@@ -20,7 +20,6 @@ pub trait DataAvailabilityClient: Sync + Send + fmt::Debug {
     /// Fetches the inclusion data for a given blob_id.
     async fn get_inclusion_data(&self, blob_id: String) -> Result<Option<InclusionData>, DAError>;
 
-    /// Clones the client and wraps it in a Box.
     fn clone_boxed(&self) -> Box<dyn DataAvailabilityClient>;
 
     /// Returns the maximum size of the blob (in bytes) that can be dispatched.

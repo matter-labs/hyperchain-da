@@ -4,5 +4,5 @@ use serde::Deserialize;
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct CelestiaConfig {
     pub light_node_url: String,
-    pub private_key: String,
+    pub auth_token: String,
 }
