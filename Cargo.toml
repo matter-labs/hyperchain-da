@@ -7,3 +7,7 @@ edition = "2021"
 async-trait = "0.1"
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
+
+zksync_node_framework = { package = "zksync_node_framework", path = "../zksync-era/core/node/node_framework" }
+zksync_env_config = { package = "zksync_env_config", path = "../zksync-era/core/lib/env_config" }
+zksync_da_client = { package = "zksync_da_client", path = "../zksync-era/core/lib/da_client" }
