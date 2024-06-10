@@ -18,6 +18,11 @@ use nmt_rs::{
     simple_merkle::{tree::MerkleTree, db::MemDb, proof::Proof},
 };
 
+mod evm_types;
+use evm_types::{
+    NamespaceMerkleMultiproof,
+};
+
 #[derive(Clone)]
 pub struct CelestiaClient {
     light_node_url: String,
@@ -34,6 +39,8 @@ pub struct InclusionDataPayload {
     pub row_inclusion_range_proof: Proof<TmSha2Hasher>,
     pub share_to_row_root_proofs: Vec<NamespaceProof>,
 }
+
+
 
 impl CelestiaClient {
     pub async fn new(config: CelestiaConfig) -> Self {
