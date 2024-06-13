@@ -7,6 +7,7 @@ use nmt_rs::{
     simple_merkle::proof::Proof,
 };
 
+
 use crate::types::DAError;
 
 const CELESTIA_NS_ID_SIZE: usize = 29;
@@ -91,4 +92,24 @@ impl TryFrom<Proof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>>> for NamespaceMerk
                 .collect::<Result<Vec<_>, _>>()?,
         })
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs::File;
+    use celestia_types::nmt::NamespaceProof;
+    use serde_json;
+    use nmt_rs::{
+        simple_merkle::proof::Proof,
+        NamespaceProof as NmtNamespaceProof,
+        NamespacedSha2Hasher,
+    };
+
+    #[test]
+    fn proof_to_evm() {
+        let proofs_file = File::open("proofs.json").unwrap();
+        let proofs: Vec<NamespaceProof> = serde_json::from_reader(proofs_file).unwrap();
+        let nmt_proofs: Vec<NmtNamespaceProof<NamespacedSha2Hasher>, CELE> = proofs.iter().map(|p| p.into_inner()).collect();
+    }
+
 }
