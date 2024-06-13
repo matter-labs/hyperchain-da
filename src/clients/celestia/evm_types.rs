@@ -3,7 +3,11 @@ use nmt_rs::{
     NamespaceProof,
     NamespaceId,
     NamespacedHash,
+    NamespacedSha2Hasher,
+    simple_merkle::proof::Proof,
 };
+
+use crate::types::DAError;
 
 const CELESTIA_NS_ID_SIZE: usize = 29;
 
@@ -43,49 +47,48 @@ sol! {
     }
 }
 
-impl From<NamespaceId<CELESTIA_NS_ID_SIZE> for Namespace {
-    fn from(namespace_id: NamespaceId<CELESTIA_NS_ID_SIZE>) -> Self {
-        Self {
-            version: namespace_id.version,
-            id: namespace_id.id,
-        }
+impl TryFrom<NamespaceId<CELESTIA_NS_ID_SIZE>> for Namespace {
+    type Error = DAError;
+    fn try_from(namespace_id: NamespaceId<CELESTIA_NS_ID_SIZE>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            version: namespace_id.0[0].into(),
+            id: namespace_id.0[1..].try_into()
+                .map_err(|_| DAError {
+                    error: anyhow::anyhow!("failed to convert namespace id to array"),
+                    is_transient: false,
+                })?,
+        })
     }
-
 }
 
-impl From<NamespacedHash<CELESTIA_NS_ID_SIZE>> for NamespaceNode {
-    fn from(hash: NamespacedHash<CELESTIA_NS_ID_SIZE>) -> Self {
-        Self {
-            min: hash.min_namespace(),
-            max: hash.max_namespace(),
-            digest: hash.hash,
-        }
+impl TryFrom<NamespacedHash<CELESTIA_NS_ID_SIZE>> for NamespaceNode {
+    type Error = DAError;
+    fn try_from(namespaced_hash: NamespacedHash<CELESTIA_NS_ID_SIZE>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            min: Namespace::try_from(namespaced_hash.min_namespace())?,
+            max: Namespace::try_from(namespaced_hash.max_namespace())?,
+            digest: namespaced_hash.hash().into(),
+        })
     }
-
 }
 
-impl From<NamespaceProof> for NamespaceMerkleMultiproof {
-    fn from(proof: NamespaceProof) -> Self {
-        match proof {
-            NamespaceProof::AbsenceProof { .. } => {
-                panic!("cannot convert absence proof to multiproof");
-            }
-            NamespaceProof::PresenceProof { proof, .. } => {
-                let sideNodes = proof
-                    .siblings
-                    .iter()
-                    .map(|sibling| NamespaceNode {
-                        min: sibling.min.clone(),
-                        max: sibling.max.clone(),
-                        digest: sibling.digest.clone(),
-                    })
-                    .collect();
-                Self {
-                    beginKey: proof.begin_key,
-                    endKey: proof.end_key,
-                    sideNodes,
-                }
-            }
-        }
+impl TryFrom<Proof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>>> for NamespaceMerkleMultiproof {
+    type Error = DAError;
+    fn try_from(proof: Proof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            beginKey: proof.range.start.try_into()
+                .map_err(|_| DAError {
+                    error: anyhow::anyhow!("failed to convert start key to u256"),
+                    is_transient: false,
+                })?,
+            endKey: proof.range.end.try_into()
+                .map_err(|_| DAError {
+                    error: anyhow::anyhow!("failed to convert end key to u256"),
+                    is_transient: false,
+                })?,
+            sideNodes: proof.siblings.iter()
+                .map(|node| NamespaceNode::try_from(node.clone()))
+                .collect::<Result<Vec<_>, _>>()?,
+        })
     }
 }
