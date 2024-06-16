@@ -1,4 +1,5 @@
 use alloy_sol_macro::sol;
+use celestia_types::nmt::NamespaceProof as NamespaceProofTia;
 use nmt_rs::{
     NamespaceProof,
     NamespaceId,
@@ -94,9 +95,23 @@ impl TryFrom<Proof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>>> for NamespaceMerk
     }
 }
 
+impl TryFrom<NamespaceProof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>, CELESTIA_NS_ID_SIZE>> for NamespaceMerkleMultiproof {
+    type Error = DAError;
+    fn try_from(proof: NamespaceProof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>, CELESTIA_NS_ID_SIZE>) -> Result<Self, Self::Error> {
+        match proof {
+            NamespaceProof::PresenceProof{proof, ..} => Ok(Self::try_from(proof)?),
+            NamespaceProof::AbsenceProof { .. } => Err(DAError {
+                error: anyhow::anyhow!("absence proof not supported"),
+                is_transient: false,
+            }),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs::File;
+    use alloy_sol_types::SolValue;
     use celestia_types::nmt::NamespaceProof;
     use serde_json;
     use nmt_rs::{
@@ -105,11 +120,16 @@ mod tests {
         NamespacedSha2Hasher,
     };
 
+    use super::{NamespaceMerkleMultiproof, CELESTIA_NS_ID_SIZE};
+
     #[test]
     fn proof_to_evm() {
         let proofs_file = File::open("proofs.json").unwrap();
         let proofs: Vec<NamespaceProof> = serde_json::from_reader(proofs_file).unwrap();
-        let nmt_proofs: Vec<NmtNamespaceProof<NamespacedSha2Hasher>, CELE> = proofs.iter().map(|p| p.into_inner()).collect();
+        let nmt_proofs: Vec<NmtNamespaceProof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>, CELESTIA_NS_ID_SIZE>> = proofs.iter().map(|p| p.clone().into_inner()).collect();
+        let proof0 = nmt_proofs[0].clone();
+        let evm_proof = NamespaceMerkleMultiproof::try_from(proof0).expect("failed rip");
+        println!("{:?}", evm_proof.abi_encode());
     }
 
 }
