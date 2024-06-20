@@ -129,7 +129,8 @@ mod tests {
         let nmt_proofs: Vec<NmtNamespaceProof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>, CELESTIA_NS_ID_SIZE>> = proofs.iter().map(|p| p.clone().into_inner()).collect();
         let proof0 = nmt_proofs[0].clone();
         let evm_proof = NamespaceMerkleMultiproof::try_from(proof0).expect("failed rip");
-        println!("{:?}", evm_proof.abi_encode());
+        let hex_string: String = evm_proof.abi_encode().iter().map(|byte| format!("{:02x}", byte)).collect();
+        println!("{}", hex_string);
     }
 
 }
