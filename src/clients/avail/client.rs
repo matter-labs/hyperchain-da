@@ -2,9 +2,10 @@ use crate::clients::avail::config::AvailConfig;
 use async_trait::async_trait;
 use std::fmt::{Debug, Formatter};
 
-use avail_core::{AppId};
+use avail_core::AppId;
 use avail_subxt::{
-    api::{self}, AvailClient as AvailSubxtClient,
+    api::{self},
+    AvailClient as AvailSubxtClient,
 };
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
 use zksync_da_client::{
@@ -21,8 +22,7 @@ use avail_subxt::{
     },
     tx,
 };
-use tracing::{error};
-
+use tracing::error;
 
 #[derive(Clone)]
 pub struct AvailClient {
