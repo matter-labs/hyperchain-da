@@ -96,34 +96,33 @@ impl DataAvailabilityClient for AvailClient {
     ) -> Result<types::DispatchResponse, types::DAError> {
         let client = AvailSubxtClient::new(self.api_node_url.clone())
             .await
-            .map_err(|e| anyhow!("Client cannot be connected: {e:?}"))
-            .unwrap();
+            .map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
 
-        let mnemonic = Mnemonic::parse(&self.seed).unwrap();
-        let keypair = Keypair::from_phrase(&mnemonic, None).unwrap();
+        let mnemonic = Mnemonic::parse(&self.seed).map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
+        let keypair = Keypair::from_phrase(&mnemonic, None).map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
         let call = api::tx()
             .data_availability()
             .submit_data(BoundedVec(data.clone()));
 
-        let nonce = avail_subxt::tx::nonce(&client, &keypair).await.unwrap();
+        let nonce = avail_subxt::tx::nonce(&client, &keypair).await.map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
         let tx_progress = tx::send_with_nonce(
             &client,
             &call,
             &keypair,
-            AppId(u32::try_from(self.app_id).unwrap()),
+            AppId(u32::try_from(self.app_id).map_err(|e| types::DAError { error: e.into(), is_transient: false })?),
             nonce,
         )
         .await
-        .unwrap();
-        let block_hash = tx::then_in_block(tx_progress).await.unwrap().block_hash();
+        .map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
+        let block_hash = tx::then_in_block(tx_progress).await.map_err(|e| types::DAError { error: e.into(), is_transient: false })?.block_hash();
 
         // Retrieve the data from the block hash
-        let block = client.blocks().at(block_hash).await.unwrap();
-        let extrinsics = block.extrinsics().await.unwrap();
+        let block = client.blocks().at(block_hash).await.map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
+        let extrinsics = block.extrinsics().await.map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
         let mut found = false;
         let mut tx_idx = 0;
         for ext in extrinsics.iter() {
-            let ext = ext.unwrap();
+            let ext = ext.map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
             let call = ext.as_extrinsic::<SubmitData>();
             if let Ok(Some(call)) = call {
                 if data.clone() == call.data.0 {
@@ -150,15 +149,17 @@ impl DataAvailabilityClient for AvailClient {
         &self,
         blob_id: &str,
     ) -> Result<Option<types::InclusionData>, types::DAError> {
-        let (block_hash, tx_idx) = blob_id.split_once(':').unwrap();
+        let (block_hash, tx_idx) = blob_id.split_once(':').ok_or_else(|| DAError {
+            error: anyhow!("Invalid blob_id format"),
+            is_transient: false,
+        })?;
         let client = reqwest::Client::new();
         let url = format!(
             "{}/eth/proof/{}?index={}",
             self.bridge_api_url, block_hash, tx_idx
         );
-        let response = client.get(&url).send().await.unwrap();
-        let body = response.text().await.unwrap();
-        let bridge_api_data: BridgeAPIResponse = serde_json::from_str(&body).unwrap();
+        let response = client.get(&url).send().await.map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
+        let bridge_api_data: BridgeAPIResponse = response.json().await.map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
         let attestation_data: MerkleProofInput = MerkleProofInput {
             dataRootProof: bridge_api_data.data_root_proof,
             leafProof: bridge_api_data.leaf_proof,
@@ -179,7 +180,7 @@ impl DataAvailabilityClient for AvailClient {
     }
 
     fn blob_size_limit(&self) -> Option<usize> {
-        Some(usize::try_from(512 * 1024).unwrap()) // 512 KB is the limit per blob
+        Some(usize::try_from(512 * 1024).unwrap())
     }
 }
 
