@@ -1,15 +1,20 @@
 use crate::clients::avail::config::AvailConfig;
+use alloy::{
+    primitives::{B256, U256},
+    sol,
+    sol_types::SolValue,
+};
 use async_trait::async_trait;
-use std::fmt::{Debug, Formatter};
-
 use avail_core::AppId;
 use avail_subxt::{
     api::{self},
     AvailClient as AvailSubxtClient,
 };
+use serde::Deserialize;
+use std::fmt::{Debug, Formatter};
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
 use zksync_da_client::{
-    types::{self, DAError},
+    types::{self, DAError, InclusionData},
     DataAvailabilityClient,
 };
 use zksync_env_config::FromEnv;
@@ -34,6 +39,39 @@ pub struct AvailClient {
     max_retries: usize,
 }
 
+#[derive(Deserialize)]
+pub struct BridgeAPIResponse {
+    blob_root: B256,
+    bridge_root: B256,
+    data_root_index: U256,
+    data_root_proof: Vec<B256>,
+    leaf: B256,
+    leaf_index: U256,
+    leaf_proof: Vec<B256>,
+    range_hash: B256,
+}
+
+sol! {
+    struct MerkleProofInput {
+        // proof of inclusion for the data root
+        bytes32[] dataRootProof;
+        // proof of inclusion of leaf within blob/bridge root
+        bytes32[] leafProof;
+        // abi.encodePacked(startBlock, endBlock) of header range commitment on vectorx
+        bytes32 rangeHash;
+        // index of the data root in the commitment tree
+        uint256 dataRootIndex;
+        // blob root to check proof against, or reconstruct the data root
+        bytes32 blobRoot;
+        // bridge root to check proof against, or reconstruct the data root
+        bytes32 bridgeRoot;
+        // leaf being proven
+        bytes32 leaf;
+        // index of the leaf in the blob/bridge root tree
+        uint256 leafIndex;
+    }
+}
+
 impl AvailClient {
     pub fn new() -> anyhow::Result<Self> {
         let config = AvailConfig::from_env()?;
@@ -53,7 +91,7 @@ impl AvailClient {
 impl DataAvailabilityClient for AvailClient {
     async fn dispatch_blob(
         &self,
-        batch_number: u32,
+        _batch_number: u32,
         data: Vec<u8>,
     ) -> Result<types::DispatchResponse, types::DAError> {
         let client = AvailSubxtClient::new(self.api_node_url.clone())
@@ -113,7 +151,27 @@ impl DataAvailabilityClient for AvailClient {
         blob_id: &str,
     ) -> Result<Option<types::InclusionData>, types::DAError> {
         let (block_hash, tx_idx) = blob_id.split_once(':').unwrap();
-        todo!()
+        let client = reqwest::Client::new();
+        let url = format!(
+            "{}/eth/proof/{}?index={}",
+            self.bridge_api_url, block_hash, tx_idx
+        );
+        let response = client.get(&url).send().await.unwrap();
+        let body = response.text().await.unwrap();
+        let bridge_api_data: BridgeAPIResponse = serde_json::from_str(&body).unwrap();
+        let attestation_data: MerkleProofInput = MerkleProofInput {
+            dataRootProof: bridge_api_data.data_root_proof,
+            leafProof: bridge_api_data.leaf_proof,
+            rangeHash: bridge_api_data.range_hash,
+            dataRootIndex: bridge_api_data.data_root_index,
+            blobRoot: bridge_api_data.blob_root,
+            bridgeRoot: bridge_api_data.bridge_root,
+            leaf: bridge_api_data.leaf,
+            leafIndex: bridge_api_data.leaf_index,
+        };
+        Ok(Some(InclusionData {
+            data: attestation_data.abi_encode(),
+        }))
     }
 
     fn clone_boxed(&self) -> Box<dyn DataAvailabilityClient> {

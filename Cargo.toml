@@ -20,9 +20,11 @@ sp-core = { git = "https://github.com/availproject/polkadot-sdk.git", tag = "pol
 tracing = { version = "0.1.40", optional = true }
 tokio = { version = "1.38.0", optional = true }
 reqwest = {version = "0.12.5", optional = true }
+serde_json = { version = "1.0.117", optional = true }
+alloy = {version = "0.1.2", features = [ "full" ], optional = true }
 
 [features]
-default = ["alloy-core", "avail-subxt", "avail-core", "subxt", "sp-core", "sp-keyring", "subxt-signer", "tracing", "tokio", "reqwest"]
+default = ["alloy", "alloy-core", "avail-subxt", "avail-core", "subxt", "sp-core", "sp-keyring", "subxt-signer", "tracing", "tokio", "reqwest", "serde_json"]
 celestia = []
 subxt-signer = ["dep:subxt-signer"]
 tracing = ["dep:tracing"]
