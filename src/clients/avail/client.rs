@@ -96,33 +96,72 @@ impl DataAvailabilityClient for AvailClient {
     ) -> Result<types::DispatchResponse, types::DAError> {
         let client = AvailSubxtClient::new(self.api_node_url.clone())
             .await
-            .map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
+            .map_err(|e| types::DAError {
+                error: e.into(),
+                is_transient: false,
+            })?;
 
-        let mnemonic = Mnemonic::parse(&self.seed).map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
-        let keypair = Keypair::from_phrase(&mnemonic, None).map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
+        let mnemonic = Mnemonic::parse(&self.seed).map_err(|e| types::DAError {
+            error: e.into(),
+            is_transient: false,
+        })?;
+        let keypair = Keypair::from_phrase(&mnemonic, None).map_err(|e| types::DAError {
+            error: e.into(),
+            is_transient: false,
+        })?;
         let call = api::tx()
             .data_availability()
             .submit_data(BoundedVec(data.clone()));
 
-        let nonce = avail_subxt::tx::nonce(&client, &keypair).await.map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
+        let nonce = avail_subxt::tx::nonce(&client, &keypair)
+            .await
+            .map_err(|e| types::DAError {
+                error: e.into(),
+                is_transient: false,
+            })?;
         let tx_progress = tx::send_with_nonce(
             &client,
             &call,
             &keypair,
-            AppId(u32::try_from(self.app_id).map_err(|e| types::DAError { error: e.into(), is_transient: false })?),
+            AppId(u32::try_from(self.app_id).map_err(|e| types::DAError {
+                error: e.into(),
+                is_transient: false,
+            })?),
             nonce,
         )
         .await
-        .map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
-        let block_hash = tx::then_in_block(tx_progress).await.map_err(|e| types::DAError { error: e.into(), is_transient: false })?.block_hash();
+        .map_err(|e| types::DAError {
+            error: e.into(),
+            is_transient: false,
+        })?;
+        let block_hash = tx::then_in_block(tx_progress)
+            .await
+            .map_err(|e| types::DAError {
+                error: e.into(),
+                is_transient: false,
+            })?
+            .block_hash();
 
         // Retrieve the data from the block hash
-        let block = client.blocks().at(block_hash).await.map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
-        let extrinsics = block.extrinsics().await.map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
+        let block = client
+            .blocks()
+            .at(block_hash)
+            .await
+            .map_err(|e| types::DAError {
+                error: e.into(),
+                is_transient: false,
+            })?;
+        let extrinsics = block.extrinsics().await.map_err(|e| types::DAError {
+            error: e.into(),
+            is_transient: false,
+        })?;
         let mut found = false;
         let mut tx_idx = 0;
         for ext in extrinsics.iter() {
-            let ext = ext.map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
+            let ext = ext.map_err(|e| types::DAError {
+                error: e.into(),
+                is_transient: false,
+            })?;
             let call = ext.as_extrinsic::<SubmitData>();
             if let Ok(Some(call)) = call {
                 if data.clone() == call.data.0 {
@@ -158,8 +197,15 @@ impl DataAvailabilityClient for AvailClient {
             "{}/eth/proof/{}?index={}",
             self.bridge_api_url, block_hash, tx_idx
         );
-        let response = client.get(&url).send().await.map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
-        let bridge_api_data: BridgeAPIResponse = response.json().await.map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
+        let response = client.get(&url).send().await.map_err(|e| types::DAError {
+            error: e.into(),
+            is_transient: false,
+        })?;
+        let bridge_api_data: BridgeAPIResponse =
+            response.json().await.map_err(|e| types::DAError {
+                error: e.into(),
+                is_transient: false,
+            })?;
         let attestation_data: MerkleProofInput = MerkleProofInput {
             dataRootProof: bridge_api_data.data_root_proof,
             leafProof: bridge_api_data.leaf_proof,
