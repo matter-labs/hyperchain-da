@@ -1,11 +1,11 @@
-use crate::clients::celestia::{config::CelestiaConfig, client::CelestiaClient};
+use crate::clients::celestia::{client::CelestiaClient, config::CelestiaConfig};
 
+use zksync_da_client::DataAvailabilityClient;
+use zksync_node_framework::implementations::resources::da_client::DAClientResource;
 use zksync_node_framework::{
     service::ServiceContext,
     wiring_layer::{WiringError, WiringLayer},
 };
-use zksync_node_framework::implementations::resources::da_client::DAClientResource;
-use zksync_da_client::DataAvailabilityClient;
 
 #[derive(Debug)]
 pub struct CelestiaWiringLayer {
@@ -13,12 +13,8 @@ pub struct CelestiaWiringLayer {
 }
 
 impl CelestiaWiringLayer {
-    pub fn new(
-        config: CelestiaConfig,
-    ) -> Self {
-        Self {
-            config,
-        }
+    pub fn new(config: CelestiaConfig) -> Self {
+        Self { config }
     }
 }
 
