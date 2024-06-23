@@ -2,13 +2,10 @@ use crate::clients::avail::config::AvailConfig;
 use async_trait::async_trait;
 use std::fmt::{Debug, Formatter};
 
-use avail_core::{currency::Balance, AppId};
+use avail_core::{AppId};
 use avail_subxt::{
-    api::{self, system::storage::types::block_hash},
-    AccountId, AvailClient as AvailSubxtClient, AvailConfig as AvailSubxtConfig,
+    api::{self}, AvailClient as AvailSubxtClient,
 };
-use sp_core::H256;
-use subxt::{blocks::BlockRef, tx::Signer, OnlineClient};
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
 use zksync_da_client::{
     types::{self, DAError},
@@ -22,14 +19,10 @@ use avail_subxt::{
         data_availability::calls::types::SubmitData,
         runtime_types::bounded_collections::bounded_vec::BoundedVec,
     },
-    primitives::CheckAppId,
     tx,
 };
-use std::sync::{atomic::AtomicU64, Arc, OnceLock};
-use tokio::sync::{OnceCell, OwnedSemaphorePermit, Semaphore};
-use tracing::{error, info, warn};
+use tracing::{error};
 
-use std::sync::atomic::Ordering::Relaxed;
 
 #[derive(Clone)]
 pub struct AvailClient {
@@ -94,13 +87,10 @@ impl DataAvailabilityClient for AvailClient {
         for ext in extrinsics.iter() {
             let ext = ext.unwrap();
             let call = ext.as_extrinsic::<SubmitData>();
-            match call {
-                Ok(Some(call)) => {
-                    if data.clone() == call.data.0 {
-                        found = true;
-                    }
+            if let Ok(Some(call)) = call {
+                if data.clone() == call.data.0 {
+                    found = true;
                 }
-                _ => {}
             }
             tx_idx += 1;
         }
@@ -114,7 +104,7 @@ impl DataAvailabilityClient for AvailClient {
         }
 
         Ok(types::DispatchResponse {
-            blob_id: format!("{}:{}", block_hash, tx_idx.to_string()),
+            blob_id: format!("{}:{}", block_hash, tx_idx),
         })
     }
 
