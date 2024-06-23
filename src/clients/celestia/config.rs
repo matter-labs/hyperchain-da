@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use zksync_env_config::{FromEnv, envy_load};
+use zksync_env_config::{envy_load, FromEnv};
 
 // feel free to redefine all the fields in this struct, this is just a placeholder
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -23,10 +23,7 @@ mod tests {
 
     static MUTEX: EnvMutex = EnvMutex::new();
 
-    fn expected_celestia_da_layer_config(
-        pk: &str,
-        api_node_url: &str,
-    ) -> CelestiaConfig {
+    fn expected_celestia_da_layer_config(pk: &str, api_node_url: &str) -> CelestiaConfig {
         CelestiaConfig {
             api_node_url: api_node_url.to_string(),
             private_key: pk.to_string(),
