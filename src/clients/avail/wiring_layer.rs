@@ -1,11 +1,11 @@
-use crate::clients::avail::{config::AvailConfig, client::AvailClient};
+use crate::clients::avail::{client::AvailClient, config::AvailConfig};
 
+use zksync_da_client::DataAvailabilityClient;
+use zksync_node_framework::implementations::resources::da_client::DAClientResource;
 use zksync_node_framework::{
     service::ServiceContext,
     wiring_layer::{WiringError, WiringLayer},
 };
-use zksync_node_framework::implementations::resources::da_client::DAClientResource;
-use zksync_da_client::DataAvailabilityClient;
 
 #[derive(Debug)]
 pub struct AvailWiringLayer {
@@ -13,12 +13,8 @@ pub struct AvailWiringLayer {
 }
 
 impl AvailWiringLayer {
-    pub fn new(
-        config: AvailConfig,
-    ) -> Self {
-        Self {
-            config,
-        }
+    pub fn new(config: AvailConfig) -> Self {
+        Self { config }
     }
 }
 

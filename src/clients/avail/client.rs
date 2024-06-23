@@ -1,33 +1,40 @@
-use std::fmt::{Debug, Formatter};
-use async_trait::async_trait;
 use crate::clients::avail::config::AvailConfig;
+use async_trait::async_trait;
+use std::fmt::{Debug, Formatter};
 
-use zksync_env_config::FromEnv;
-use zksync_da_client::{types::{self, DAError}, DataAvailabilityClient};
-use avail_core::{AppId, currency::Balance};
-use avail_subxt::{api, AccountId, AvailClient as AvailSubxtClient, AvailConfig as AvailSubxtConfig};
+use avail_core::{currency::Balance, AppId};
+use avail_subxt::{
+    api::{self, system::storage::types::block_hash},
+    AccountId, AvailClient as AvailSubxtClient, AvailConfig as AvailSubxtConfig,
+};
 use sp_core::H256;
 use subxt::{blocks::BlockRef, tx::Signer, OnlineClient};
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
+use zksync_da_client::{
+    types::{self, DAError},
+    DataAvailabilityClient,
+};
+use zksync_env_config::FromEnv;
 
 use anyhow::{anyhow, Result};
+use avail_subxt::{
+    api::{
+        data_availability::calls::types::SubmitData,
+        runtime_types::bounded_collections::bounded_vec::BoundedVec,
+    },
+    primitives::CheckAppId,
+    tx,
+};
 use std::sync::{atomic::AtomicU64, Arc, OnceLock};
 use tokio::sync::{OnceCell, OwnedSemaphorePermit, Semaphore};
-use tracing::{warn, error, info};
-use avail_subxt::{
-	api::{
-		data_availability::calls::types::SubmitData,
-		runtime_types::bounded_collections::bounded_vec::BoundedVec,
-	},
-	primitives::CheckAppId,
-	tx,
-};
+use tracing::{error, info, warn};
 
 use std::sync::atomic::Ordering::Relaxed;
 
 #[derive(Clone)]
 pub struct AvailClient {
     api_node_url: String,
+    bridge_api_url: String,
     seed: String,
     app_id: usize,
     timeout: usize,
@@ -40,6 +47,7 @@ impl AvailClient {
 
         Ok(Self {
             api_node_url: config.api_node_url,
+            bridge_api_url: config.bridge_api_url,
             seed: config.seed,
             app_id: config.app_id,
             timeout: config.timeout,
@@ -56,19 +64,28 @@ impl DataAvailabilityClient for AvailClient {
         data: Vec<u8>,
     ) -> Result<types::DispatchResponse, types::DAError> {
         let client = AvailSubxtClient::new(self.api_node_url.clone())
-        .await
-        .map_err(|e| anyhow!("Client cannot be connected: {e:?}")).unwrap();
+            .await
+            .map_err(|e| anyhow!("Client cannot be connected: {e:?}"))
+            .unwrap();
 
         let mnemonic = Mnemonic::parse(&self.seed).unwrap();
         let keypair = Keypair::from_phrase(&mnemonic, None).unwrap();
         let call = api::tx()
             .data_availability()
             .submit_data(BoundedVec(data.clone()));
-    
+
         let nonce = avail_subxt::tx::nonce(&client, &keypair).await.unwrap();
-        let tx_progress = tx::send_with_nonce(&client, &call, &keypair, AppId(u32::try_from(self.app_id).unwrap()), nonce).await.unwrap();
+        let tx_progress = tx::send_with_nonce(
+            &client,
+            &call,
+            &keypair,
+            AppId(u32::try_from(self.app_id).unwrap()),
+            nonce,
+        )
+        .await
+        .unwrap();
         let block_hash = tx::then_in_block(tx_progress).await.unwrap().block_hash();
-    
+
         // Retrieve the data from the block hash
         let block = client.blocks().at(block_hash).await.unwrap();
         let extrinsics = block.extrinsics().await.unwrap();
@@ -83,21 +100,21 @@ impl DataAvailabilityClient for AvailClient {
                         found = true;
                     }
                 }
-                _ => { },
+                _ => {}
             }
             tx_idx += 1;
         }
-    
+
         if !found {
             error!("No DA submission found in block: {}", block_hash);
-            return Err(DAError { 
+            return Err(DAError {
                 error: anyhow!("No DA submission found in block: {}", block_hash),
                 is_transient: false,
             });
         }
 
         Ok(types::DispatchResponse {
-            blob_id: block_hash.to_string() + tx_idx.to_string().as_str(),
+            blob_id: format!("{}:{}", block_hash, tx_idx.to_string()),
         })
     }
 
@@ -105,6 +122,7 @@ impl DataAvailabilityClient for AvailClient {
         &self,
         blob_id: &str,
     ) -> Result<Option<types::InclusionData>, types::DAError> {
+        let (block_hash, tx_idx) = blob_id.split_once(':').unwrap();
         todo!()
     }
 
@@ -121,6 +139,7 @@ impl Debug for AvailClient {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AvailClient")
             .field("api_node_url", &self.api_node_url)
+            .field("bridge_api_url", &self.bridge_api_url)
             .field("app_id", &self.app_id)
             .field("timeout", &self.timeout)
             .field("max_retries", &self.max_retries)
