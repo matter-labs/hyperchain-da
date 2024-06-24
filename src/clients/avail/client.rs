@@ -27,7 +27,6 @@ use avail_subxt::{
     },
     tx,
 };
-use tracing::error;
 
 #[derive(Clone)]
 pub struct AvailClient {
@@ -172,7 +171,6 @@ impl DataAvailabilityClient for AvailClient {
         }
 
         if !found {
-            error!("No DA submission found in block: {}", block_hash);
             return Err(DAError {
                 error: anyhow!("No DA submission found in block: {}", block_hash),
                 is_transient: false,
