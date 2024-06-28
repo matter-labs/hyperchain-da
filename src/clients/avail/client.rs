@@ -198,6 +198,7 @@ impl DataAvailabilityClient for AvailClient {
             self.bridge_api_url, block_hash, tx_idx
         );
         let mut response: Response;
+        let mut retries = 0usize;
         loop {
             response = client.get(&url).send().await.map_err(|e| types::DAError {
                 error: e.into(),
@@ -207,6 +208,13 @@ impl DataAvailabilityClient for AvailClient {
                 break;
             }
             sleep(Duration::from_secs(u64::try_from(self.timeout).unwrap())).await;
+            retries += 1;
+            if retries > self.max_retries {
+                return Err(DAError {
+                    error: anyhow!("Failed to get inclusion data"),
+                    is_transient: true,
+                });
+            }
         }
         let bridge_api_data: BridgeAPIResponse =
             response.json().await.map_err(|e| types::DAError {
