@@ -10,9 +10,11 @@ use avail_subxt::{
     api::{self},
     AvailClient as AvailSubxtClient,
 };
+use reqwest::Response;
 use serde::Deserialize;
 use std::fmt::{Debug, Formatter};
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
+use tokio::time::{sleep, Duration};
 use zksync_da_client::{
     types::{self, DAError, InclusionData},
     DataAvailabilityClient,
@@ -187,7 +189,7 @@ impl DataAvailabilityClient for AvailClient {
         blob_id: &str,
     ) -> Result<Option<types::InclusionData>, types::DAError> {
         let (block_hash, tx_idx) = blob_id.split_once(':').ok_or_else(|| DAError {
-            error: anyhow!("Invalid blob_id format"),
+            error: anyhow!("Invalid blob ID format"),
             is_transient: false,
         })?;
         let client = reqwest::Client::new();
@@ -195,10 +197,17 @@ impl DataAvailabilityClient for AvailClient {
             "{}/eth/proof/{}?index={}",
             self.bridge_api_url, block_hash, tx_idx
         );
-        let response = client.get(&url).send().await.map_err(|e| types::DAError {
-            error: e.into(),
-            is_transient: false,
-        })?;
+        let mut response: Response;
+        loop {
+            response = client.get(&url).send().await.map_err(|e| types::DAError {
+                error: e.into(),
+                is_transient: false,
+            })?;
+            if response.status().is_success() {
+                break;
+            }
+            sleep(Duration::from_secs(u64::try_from(self.timeout).unwrap())).await;
+        }
         let bridge_api_data: BridgeAPIResponse =
             response.json().await.map_err(|e| types::DAError {
                 error: e.into(),
