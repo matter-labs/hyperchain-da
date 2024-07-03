@@ -1,10 +1,10 @@
 use alloy_sol_macro::sol;
-use celestia_types::nmt::NamespaceProof as NamespaceProofTia;
 use nmt_rs::{
     NamespaceProof,
     NamespaceId,
     NamespacedHash,
     NamespacedSha2Hasher,
+    TmSha2Hasher,
     simple_merkle::proof::Proof,
 };
 
@@ -14,6 +14,16 @@ use crate::types::DAError;
 const CELESTIA_NS_ID_SIZE: usize = 29;
 
 sol! {
+    
+    struct BinaryMerkleMultiproof {
+        // List of side nodes to verify and calculate tree.
+        bytes32[] sideNodes;
+        // The beginning key of the leaves to verify.
+        uint256 beginKey;
+        // The ending key of the leaves to verify.
+        uint256 endKey;
+    }
+
     struct BinaryMerkleProof {
         // List of side nodes to verify and calculate tree.
         bytes32[] sideNodes;
@@ -95,6 +105,27 @@ impl TryFrom<Proof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>>> for NamespaceMerk
     }
 }
 
+impl TryFrom<Proof<TmSha2Hasher>> for BinaryMerkleMultiproof {
+    type Error = DAError;
+    fn try_from(proof: Proof<TmSha2Hasher>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            beginKey: proof.range.start.try_into()
+                .map_err(|_| DAError {
+                    error: anyhow::anyhow!("failed to convert start key to u256"),
+                    is_transient: false,
+                })?,
+            endKey: proof.range.end.try_into()
+                .map_err(|_| DAError {
+                    error: anyhow::anyhow!("failed to convert end key to u256"),
+                    is_transient: false,
+                })?,
+            sideNodes: proof.siblings.iter()
+                .map(|node| node.into())
+                .collect(),
+        })
+    }
+}
+
 impl TryFrom<NamespaceProof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>, CELESTIA_NS_ID_SIZE>> for NamespaceMerkleMultiproof {
     type Error = DAError;
     fn try_from(proof: NamespaceProof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>, CELESTIA_NS_ID_SIZE>) -> Result<Self, Self::Error> {
@@ -111,26 +142,60 @@ impl TryFrom<NamespaceProof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>, CELESTIA_
 #[cfg(test)]
 mod tests {
     use std::fs::File;
-    use alloy_sol_types::SolValue;
-    use celestia_types::nmt::NamespaceProof;
+    use alloy_sol_macro::sol;
+    use alloy_sol_types::{SolValue, sol_data::Bytes};
+    use celestia_types::{
+        Blob, 
+        nmt::{NamespaceProof, Namespace}
+    };
+    use celestia_types::ExtendedHeader;
     use serde_json;
     use nmt_rs::{
         simple_merkle::proof::Proof,
         NamespaceProof as NmtNamespaceProof,
         NamespacedSha2Hasher,
+        NamespaceId,
     };
 
-    use super::{NamespaceMerkleMultiproof, CELESTIA_NS_ID_SIZE};
+    use super::{NamespaceMerkleMultiproof, NamespaceNode, Namespace as NamespaceEVM, CELESTIA_NS_ID_SIZE};
 
+    // This is just to generate hex bytes for the EVM.
+    // the code on the other side is here https://github.com/S1nus/blobstream-contracts/blob/connor/binary-mulitproofs/src/lib/tree/namespace/test/NamespaceMerkleMultiproof.t.sol#L92
     #[test]
     fn proof_to_evm() {
+
+        let my_namespace = Namespace::new_v0(&[1, 2, 3, 4, 5]).expect("Invalid namespace");
+        let my_namespace_id: NamespaceId<29> = my_namespace.into();
+
         let proofs_file = File::open("proofs.json").unwrap();
         let proofs: Vec<NamespaceProof> = serde_json::from_reader(proofs_file).unwrap();
         let nmt_proofs: Vec<NmtNamespaceProof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>, CELESTIA_NS_ID_SIZE>> = proofs.iter().map(|p| p.clone().into_inner()).collect();
+
+        let blob_bytes = std::fs::read("blob.dat").unwrap();
+        let mut blob = Blob::new(my_namespace, blob_bytes.clone()).unwrap();
+        let shares = blob.to_shares().expect("Failed to split blob to shares");
+        let share_values: Vec<[u8; 512]> = shares.iter().map(|share| share.data).collect();
+        let share_values_slices: Vec<&[u8]> = share_values.iter().map(|share| &share[..]).collect();
+        let shares_evm_bytes = share_values_slices[..(proofs[0].end_idx()-proofs[0].start_idx()) as usize].abi_encode();
+        println!("shares evm bytes: {}", shares_evm_bytes.iter().map(|byte| format!("{:02x}", byte)).collect::<String>());
+
+        let namespace: NamespaceEVM = my_namespace_id.try_into().unwrap();
+        let namespace_as_hex = namespace.abi_encode().iter().map(|byte| format!("{:02x}", byte)).collect::<String>();
+        println!("namespace: {}", namespace_as_hex);
+
+        let header_bytes = std::fs::read("header.dat").unwrap();
+        let dah = ExtendedHeader::decode_and_validate(&header_bytes).unwrap();
+        let eds_row_roots = &dah.dah.row_roots();
+        let row_root_0 = eds_row_roots[0].clone();
+        let row_root_evm: NamespaceNode = row_root_0.try_into().unwrap();
+        let row_root_evm_as_hex = row_root_evm.abi_encode().iter().map(|byte| format!("{:02x}", byte)).collect::<String>();
+        println!("row_root_hex: {}", row_root_evm_as_hex);
+
         let proof0 = nmt_proofs[0].clone();
         let evm_proof = NamespaceMerkleMultiproof::try_from(proof0).expect("failed rip");
         let hex_string: String = evm_proof.abi_encode().iter().map(|byte| format!("{:02x}", byte)).collect();
         println!("{}", hex_string);
+
     }
 
 }
