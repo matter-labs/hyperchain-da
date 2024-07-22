@@ -16,6 +16,9 @@ nmt-rs = {git="https://github.com/Sovereign-Labs/nmt-rs.git", rev="ac03d7c"}
 alloy-core = "0.7.6"
 alloy-sol-types = "0.7.6"
 alloy-sol-macro = "0.7.6"
+zksync_node_framework = { package = "zksync_node_framework", path = "../zksync-era/core/node/node_framework" }
+zksync_env_config = { package = "zksync_env_config", path = "../zksync-era/core/lib/env_config" }
+zksync_da_client = { package = "zksync_da_client", path = "../zksync-era/core/lib/da_client" }
 
 [dev-dependencies]
 serde_json = "1.0.114"

@@ -1,4 +1,6 @@
 pub mod config;
+pub mod wiring_layer;
+pub mod client;
 
 use core::fmt;
 use std::fmt::{Debug, Formatter};
@@ -21,9 +23,7 @@ use nmt_rs::{
 };
 
 mod evm_types;
-use evm_types::{
-    BlobInclusionProof
-};
+use evm_types::BlobInclusionProof;
 
 #[derive(Clone)]
 pub struct CelestiaClient {
@@ -44,11 +44,11 @@ pub struct InclusionDataPayload {
 
 impl CelestiaClient {
     pub async fn new(config: CelestiaConfig) -> Self {
-        let client = Client::new(&config.light_node_url, Some(&config.auth_token))
+        let client = Client::new(&config.api_node_url, Some(&config.private_key))
             .await
             .expect("could not create client");
         Self {
-            light_node_url: config.light_node_url,
+            light_node_url: config.api_node_url,
             client: Arc::new(client),
         }
     }
