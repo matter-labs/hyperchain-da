@@ -8,7 +8,6 @@ use nmt_rs::{
     simple_merkle::proof::Proof,
 };
 
-
 use crate::types::DAError;
 
 use super::InclusionDataPayload;
