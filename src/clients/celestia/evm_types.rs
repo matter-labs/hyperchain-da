@@ -141,20 +141,20 @@ impl TryFrom<NamespaceProof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>, CELESTIA_
 
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
+    use std::{cmp::max, fs::File};
     use alloy_sol_macro::sol;
     use alloy_sol_types::{SolValue, sol_data::Bytes};
     use celestia_types::{
-        Blob, 
-        nmt::{NamespaceProof, Namespace}
+        hash::Hash, nmt::{Namespace, NamespaceProof, NamespacedHashExt}, Blob
     };
     use celestia_types::ExtendedHeader;
     use serde_json;
     use nmt_rs::{
-        simple_merkle::proof::Proof,
-        NamespaceProof as NmtNamespaceProof,
-        NamespacedSha2Hasher,
+        simple_merkle::{db::MemDb, proof::Proof, tree::MerkleTree},
         NamespaceId,
+        NamespaceProof as NmtNamespaceProof, 
+        NamespacedSha2Hasher,
+        TmSha2Hasher
     };
 
     use super::{NamespaceMerkleMultiproof, NamespaceNode, Namespace as NamespaceEVM, CELESTIA_NS_ID_SIZE};
@@ -173,6 +173,8 @@ mod tests {
 
         let blob_bytes = std::fs::read("blob.dat").unwrap();
         let mut blob = Blob::new(my_namespace, blob_bytes.clone()).unwrap();
+        blob.index = Some(8);
+        let blob_size: u64 = max(1, blob.data.len() as u64 / 512);
         let shares = blob.to_shares().expect("Failed to split blob to shares");
         let share_values: Vec<[u8; 512]> = shares.iter().map(|share| share.data).collect();
         let share_values_slices: Vec<&[u8]> = share_values.iter().map(|share| &share[..]).collect();
@@ -186,6 +188,12 @@ mod tests {
         let header_bytes = std::fs::read("header.dat").unwrap();
         let dah = ExtendedHeader::decode_and_validate(&header_bytes).unwrap();
         let eds_row_roots = &dah.dah.row_roots();
+        let eds_column_roots = &dah.dah.column_roots();
+        let data_tree_leaves: Vec<_> = eds_row_roots
+            .iter()
+            .chain(eds_column_roots.iter())
+            .map(|root| root.to_array())
+            .collect();
         let row_root_0 = eds_row_roots[0].clone();
         let row_root_evm: NamespaceNode = row_root_0.try_into().unwrap();
         let row_root_evm_as_hex = row_root_evm.abi_encode().iter().map(|byte| format!("{:02x}", byte)).collect::<String>();
@@ -195,6 +203,33 @@ mod tests {
         let evm_proof = NamespaceMerkleMultiproof::try_from(proof0).expect("failed rip");
         let hex_string: String = evm_proof.abi_encode().iter().map(|byte| format!("{:02x}", byte)).collect();
         println!("{}", hex_string);
+
+        let eds_size: u64 = eds_row_roots.len().try_into().unwrap();
+        // original data square (ODS) size
+        let ods_size = eds_size / 2;
+        let first_row_index: u64 = blob.index.unwrap().div_ceil(eds_size) - 1;
+        let ods_index = blob.index.unwrap() - (first_row_index * ods_size);
+        let last_row_index: u64 = (ods_index + blob_size).div_ceil(ods_size) - 1;
+
+        // "Data root" is the merkle root of the EDS row and column roots
+        let hasher = TmSha2Hasher {}; // Tendermint Sha2 hasher
+        let mut tree: MerkleTree<MemDb<[u8; 32]>, TmSha2Hasher> = MerkleTree::with_hasher(hasher);
+        for leaf in data_tree_leaves.clone() {
+            tree.push_raw_leaf(&leaf);
+        }
+        let rp = tree.build_range_proof(first_row_index as usize..last_row_index as usize + 1);
+        let rp_evm: super::BinaryMerkleMultiproof = rp.try_into().unwrap();
+        // Ensure that the data root is the merkle root of the EDS row and column roots
+        assert_eq!(dah.dah.hash(), Hash::Sha256(tree.root()));
+        println!("binary multiproof:");
+        println!("{}", rp_evm.abi_encode().iter().map(|byte| format!("{:02x}", byte)).collect::<String>());
+        println!("data root: {}", tree.root().iter().map(|byte| format!("{:02x}", byte)).collect::<String>());
+        let rp_leaves = data_tree_leaves[first_row_index as usize..last_row_index as usize + 1].to_vec();
+        let rp_leaves_abi: Vec<&[u8]> = rp_leaves
+            .iter()
+            .map(|x| &x[..])
+            .collect();
+        println!("leaves: {:?}",rp_leaves_abi.abi_encode().iter().map(|byte| format!("{:02x}", byte)).collect::<String>());
 
     }
 
