@@ -3,9 +3,11 @@ pub mod config;
 use core::fmt;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
+use alloy_sol_types::SolValue;
 use async_trait::async_trait;
 use celestia_types::nmt::{NamespaceProof, NamespacedHashExt};
 use serde::{Serialize, Deserialize};
+use crate::types::InclusionData;
 use crate::{DataAvailabilityClient, types};
 use crate::clients::celestia::config::CelestiaConfig;
 use celestia_rpc::{BlobClient, HeaderClient, Client};
@@ -20,7 +22,7 @@ use nmt_rs::{
 
 mod evm_types;
 use evm_types::{
-    NamespaceMerkleMultiproof,
+    BlobInclusionProof
 };
 
 #[derive(Clone)]
@@ -39,8 +41,6 @@ pub struct InclusionDataPayload {
     pub row_inclusion_range_proof: Proof<TmSha2Hasher>,
     pub share_to_row_root_proofs: Vec<NamespaceProof>,
 }
-
-
 
 impl CelestiaClient {
     pub async fn new(config: CelestiaConfig) -> Self {
@@ -62,7 +62,7 @@ impl DataAvailabilityClient for CelestiaClient {
         data: Vec<u8>,
     ) -> Result<types::DispatchResponse, types::DAError> {
         // Note: how does zkStack want to determine namespace?
-        // (namespace doesn't really matter for L2 rollups such as zkStack)
+        // (namespace doesn't really matter for L2s
         let my_namespace = Namespace::new_v0(&[1, 2, 3, 4, 5]).expect("Invalid namespace");
         let blob = Blob::new(my_namespace, data)
             .map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
@@ -90,6 +90,9 @@ impl DataAvailabilityClient for CelestiaClient {
         let blob = self.client.blob_get(blob_id.height, my_namespace, blob_id.commitment)
             .await
             .map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
+        let blob_index = blob.index
+            .ok_or(types::DAError { error: anyhow!("Blob index not found"), is_transient: false })?;
+        let blob_num_shares: u64 = blob.data.len() as u64 / 512;
         let shares_to_row_roots_proofs = self.client.blob_get_proof(blob_id.height, my_namespace, blob_id.commitment)
             .await
             .map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
@@ -114,21 +117,22 @@ impl DataAvailabilityClient for CelestiaClient {
         assert_eq!(header.dah.hash(), Hash::Sha256(tree.root()));
 
         // extended data square (EDS) size
-        let eds_size = eds_row_roots.len();
+        let eds_size = eds_row_roots.len() as u64;
         // original data square (ODS) size
         let ods_size = eds_size/2;
+        let first_row_index: u64 = blob_index.div_ceil(eds_size) - 1;
+        let ods_index = blob.index.unwrap() - (first_row_index * ods_size);
+        let last_row_index: u64 = (ods_index + blob_num_shares).div_ceil(ods_size) - 1;
 
-        let blob_index = blob.index
-            .ok_or(types::DAError { error: anyhow!("Blob index not found"), is_transient: false })?;
-        let blob_size = blob.data.len();
-        let first_row_index: usize = blob_index as usize / ods_size;
-        let last_row_index: usize = first_row_index + (blob_size / ods_size);
-        let range_proof = tree.build_range_proof(first_row_index..last_row_index+1);
-        let inclusion_data_payload = InclusionDataPayload {
+        let range_proof = tree.build_range_proof(first_row_index as usize..last_row_index as usize +1);
+        let inclusion_data_payload: BlobInclusionProof = InclusionDataPayload {
             row_inclusion_range_proof: range_proof,
             share_to_row_root_proofs: shares_to_row_roots_proofs,
-        };
-        todo!() // Need to go and implement SSZ serialization for this
+        }.try_into()?;
+
+        Ok(Some(InclusionData {
+            data: inclusion_data_payload.abi_encode()
+        }))
     }
 
     fn clone_boxed(&self) -> Box<dyn DataAvailabilityClient> {

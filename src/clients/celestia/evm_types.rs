@@ -11,9 +11,18 @@ use nmt_rs::{
 
 use crate::types::DAError;
 
+use super::InclusionDataPayload;
+
 const CELESTIA_NS_ID_SIZE: usize = 29;
 
 sol! {
+    
+    struct BlobInclusionProof {
+        // The range proof for the row inclusion.
+        BinaryMerkleMultiproof row_inclusion_range_proof;
+        // The proofs for the share to row root.
+        NamespaceMerkleMultiproof[] share_to_row_root_proofs;
+    }
     
     struct BinaryMerkleMultiproof {
         // List of side nodes to verify and calculate tree.
@@ -56,6 +65,28 @@ sol! {
         bytes1 version;
         // The namespace ID.
         bytes28 id;
+    }
+}
+
+impl TryFrom<InclusionDataPayload> for BlobInclusionProof {
+    type Error = DAError;
+    fn try_from(payload: InclusionDataPayload) -> Result<Self, Self::Error> {
+        let proofs: Result<Vec<Proof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>>>, Self::Error> = payload.share_to_row_root_proofs
+            .iter()
+            .map(|proof| match proof.clone().into_inner() {
+                NamespaceProof::PresenceProof{proof, ..} => Ok(proof.clone()),
+                NamespaceProof::AbsenceProof { .. } => Err(DAError {
+                    error: anyhow::anyhow!("absence proof not supported"),
+                    is_transient: false,
+                }),
+            })
+            .collect();
+        Ok(BlobInclusionProof {
+            row_inclusion_range_proof: payload.row_inclusion_range_proof.try_into()?,
+            share_to_row_root_proofs: proofs?.iter()
+                .map(|proof| proof.clone().try_into())
+                .collect::<Result<Vec<_>, _>>()?,
+        })
     }
 }
 
