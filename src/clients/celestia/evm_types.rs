@@ -8,9 +8,9 @@ use nmt_rs::{
     simple_merkle::proof::Proof,
 };
 
-use crate::types::DAError;
+use zksync_da_client::types::DAError;
 
-use super::InclusionDataPayload;
+use crate::clients::celestia::client::BlobInclusionProof as CelestiaBlobInclusionProof;
 
 const CELESTIA_NS_ID_SIZE: usize = 29;
 
@@ -67,9 +67,9 @@ sol! {
     }
 }
 
-impl TryFrom<InclusionDataPayload> for BlobInclusionProof {
+impl TryFrom<CelestiaBlobInclusionProof> for BlobInclusionProof {
     type Error = DAError;
-    fn try_from(payload: InclusionDataPayload) -> Result<Self, Self::Error> {
+    fn try_from(payload: CelestiaBlobInclusionProof) -> Result<Self, Self::Error> {
         let proofs: Result<Vec<Proof<NamespacedSha2Hasher<CELESTIA_NS_ID_SIZE>>>, Self::Error> = payload.share_to_row_root_proofs
             .iter()
             .map(|proof| match proof.clone().into_inner() {
