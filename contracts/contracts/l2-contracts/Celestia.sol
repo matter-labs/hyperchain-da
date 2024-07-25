@@ -20,7 +20,7 @@ contract CelestiaL2DAValidator is IL2DAValidator {
         // Operator data, that is related to the DA itself
         bytes calldata _totalL2ToL1PubdataAndStateDiffs
     ) external pure returns (bytes32 outputHash) {
-        // The Merkle path is required to verify the proof inclusion. The outputHash
+        // The Merkle path is required to verify the proof inclusion. The `outputHash` is used as a leaf in the Merkle tree.
         outputHash = keccak256(_totalL2ToL1PubdataAndStateDiffs);
     }
 }
