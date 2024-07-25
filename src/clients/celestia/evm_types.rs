@@ -7,7 +7,7 @@ use nmt_rs::{
     TmSha2Hasher,
     simple_merkle::proof::Proof,
 };
-
+use anyhow::anyhow;
 use zksync_da_client::types::DAError;
 
 use crate::clients::celestia::client::BlobInclusionProof as CelestiaBlobInclusionProof;
@@ -17,10 +17,16 @@ const CELESTIA_NS_ID_SIZE: usize = 29;
 sol! {
     
     struct BlobInclusionProof {
+        // the blob
+        bytes[] blob;
         // The range proof for the row inclusion.
         BinaryMerkleMultiproof row_inclusion_range_proof;
         // The proofs for the share to row root.
         NamespaceMerkleMultiproof[] share_to_row_root_proofs;
+        // The data root of the block containing the blob
+        bytes32 dataRoot;
+        // The height of the block containing the blob
+        uint256 height;
     }
     
     struct BinaryMerkleMultiproof {
@@ -80,11 +86,19 @@ impl TryFrom<CelestiaBlobInclusionProof> for BlobInclusionProof {
                 }),
             })
             .collect();
+        //let blob_shares: Vec<&[u8]> = payload.blob.iter().map(|x| &x[..]).collect();
         Ok(BlobInclusionProof {
+            blob: payload.blob.into(),
             row_inclusion_range_proof: payload.row_inclusion_range_proof.try_into()?,
             share_to_row_root_proofs: proofs?.iter()
                 .map(|proof| proof.clone().try_into())
                 .collect::<Result<Vec<_>, _>>()?,
+            dataRoot: payload.data_root.into(),
+            height: payload.height.try_into()
+                .map_err(|_| DAError {
+                    error: anyhow!("failed to convert height to u256"),
+                    is_transient: false,
+                })?,
         })
     }
 }

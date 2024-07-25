@@ -51,8 +51,11 @@ pub struct BlobId {
 }
 
 pub struct BlobInclusionProof {
+    pub blob: Vec<[u8; 512]>,
     pub row_inclusion_range_proof: Proof<TmSha2Hasher>,
     pub share_to_row_root_proofs: Vec<NamespaceProof>,
+    pub data_root: [u8; 32],
+    pub height: u64,
 }
 
 #[async_trait]
@@ -83,7 +86,7 @@ impl DataAvailabilityClient for CelestiaClient {
 
     }
 
-    async fn get_inclusion_data(&self, blob_id: String) -> Result<Option<types::InclusionData>, types::DAError> {        // How do we want to do namespaces?
+    async fn get_inclusion_data(&self, blob_id: &str) -> Result<Option<types::InclusionData>, types::DAError> {        // How do we want to do namespaces?
         let my_namespace = Namespace::new_v0(&[1, 2, 3, 4, 5]).expect("Invalid namespace");
         let blob_id: BlobId = bincode::deserialize(&hex::decode(blob_id).unwrap())
             .map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
@@ -126,8 +129,18 @@ impl DataAvailabilityClient for CelestiaClient {
 
         let range_proof = tree.build_range_proof(first_row_index as usize..last_row_index as usize +1);
         let inclusion_data_payload: EVMBlobInclusionProof = BlobInclusionProof {
+            blob: blob
+                .to_shares()
+                .map_err(|_| types::DAError { error: anyhow!("Couldn't convert blob to shares"), is_transient: false })?
+                .iter()
+                .map(|share| share.data().try_into())
+                .collect::<Result<Vec<[u8; 512]>, _>>()
+                .map_err(|_| types::DAError { error: anyhow!("Couldn't convert share data into [u8; 512]"), is_transient: false })?,
             row_inclusion_range_proof: range_proof,
             share_to_row_root_proofs: shares_to_row_roots_proofs,
+            data_root: header.dah.hash().as_bytes().try_into()
+                .map_err(|_| types::DAError { error: anyhow!("Couldn't convert data root into [u8; 32]"), is_transient: false })?,
+            height: blob_id.height,
         }.try_into()?;
 
         Ok(Some(types::InclusionData {
@@ -140,8 +153,8 @@ impl DataAvailabilityClient for CelestiaClient {
         Box::new(self.clone())
     }
 
-    fn blob_size_limit(&self) -> usize {
-        1973786
+    fn blob_size_limit(&self) -> Option<usize> {
+        Some(1973786)
     }
 }
 
