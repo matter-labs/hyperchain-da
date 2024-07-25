@@ -8,9 +8,3 @@
 [submodule "contracts/lib/blobstreamx"]
 	path = contracts/lib/blobstreamx
 	url = git@github.com:succinctlabs/blobstreamx.git
-[submodule "contracts/lib/blobstream-contracts"]
-	path = contracts/lib/blobstream-contracts
-	url = https://github.com/celestiaorg/blobstream-contracts
-[submodule "contracts/lib/blobstream-contracts.git"]
-	path = contracts/lib/blobstream-contracts.git
-	url = https://github.com/celestiaorg/blobstream-contracts.git
