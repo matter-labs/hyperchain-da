@@ -23,4 +23,3 @@ The contracts consist of two parts:
   - Matches the DA commitment from logs with the inclusion data.
   - Calls the verification contract (Attestation Bridge/Blobstream...) with the inclusion data.
 
-#### More details to be added in stage 2...
