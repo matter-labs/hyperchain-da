@@ -13,7 +13,7 @@ use serde::{Serialize, Deserialize};
 use anyhow::anyhow;
 
 use celestia_rpc::{BlobClient, HeaderClient, Client};
-use celestia_types::{Blob, nmt::{Namespace, NamespaceProof}, blob::Commitment, hash::Hash};
+use celestia_types::{Blob, nmt::{Namespace, NamespaceProof, NamespacedHash}, blob::Commitment, hash::Hash};
 use nmt_rs::{
     TmSha2Hasher,
     simple_merkle::{tree::MerkleTree, db::MemDb, proof::Proof},
@@ -54,6 +54,7 @@ pub struct BlobInclusionProof {
     pub blob: Vec<[u8; 512]>,
     pub row_inclusion_range_proof: Proof<TmSha2Hasher>,
     pub share_to_row_root_proofs: Vec<NamespaceProof>,
+    pub row_roots: Vec<NamespacedHash>,
     pub data_root: [u8; 32],
     pub height: u64,
 }
@@ -138,6 +139,7 @@ impl DataAvailabilityClient for CelestiaClient {
                 .map_err(|_| types::DAError { error: anyhow!("Couldn't convert share data into [u8; 512]"), is_transient: false })?,
             row_inclusion_range_proof: range_proof,
             share_to_row_root_proofs: shares_to_row_roots_proofs,
+            row_roots: eds_row_roots[first_row_index as usize..last_row_index as usize +1].to_vec(),
             data_root: header.dah.hash().as_bytes().try_into()
                 .map_err(|_| types::DAError { error: anyhow!("Couldn't convert data root into [u8; 32]"), is_transient: false })?,
             height: blob_id.height,

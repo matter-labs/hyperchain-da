@@ -18,12 +18,14 @@ const CELESTIA_NS_ID_SIZE: usize = 29;
 sol! {
     
     struct BlobInclusionProof {
-        // the blob
+        // the blob (the pubdata)
         bytes[] blob;
-        // The range proof for the row inclusion.
+        // The multiproof for the row roots into the data root
         BinaryMerkleMultiproof row_inclusion_range_proof;
-        // The proofs for the share to row root.
+        // The proofs for the shares into the row roots .
         NamespaceMerkleMultiproof[] share_to_row_root_proofs;
+        // The row roots of the rows spanned by the blob
+        NamespaceNode[] rowRoots;
         // The data root of the block containing the blob
         bytes32 dataRoot;
         // The height of the block containing the blob
@@ -93,6 +95,9 @@ impl TryFrom<CelestiaBlobInclusionProof> for BlobInclusionProof {
             row_inclusion_range_proof: payload.row_inclusion_range_proof.try_into()?,
             share_to_row_root_proofs: proofs?.iter()
                 .map(|proof| proof.clone().try_into())
+                .collect::<Result<Vec<_>, _>>()?,
+            rowRoots: payload.row_roots.iter()
+                .map(|root| root.clone().try_into())
                 .collect::<Result<Vec<_>, _>>()?,
             dataRoot: payload.data_root.into(),
             height: payload.height.try_into()
@@ -210,6 +215,7 @@ mod tests {
     fn proof_to_evm() {
 
         let my_namespace = Namespace::new_v0(&[1, 2, 3, 4, 5]).expect("Invalid namespace");
+        println!("namespace version: {} namespace id: {}", my_namespace.version(), my_namespace.id().iter().map(|byte| format!("{:02x}", byte)).collect::<String>());
         let my_namespace_id: NamespaceId<29> = my_namespace.into();
 
         let proofs_file = File::open("proofs.json").unwrap();

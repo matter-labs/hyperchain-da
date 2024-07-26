@@ -6,6 +6,10 @@ pragma solidity 0.8.24;
 
 import {IL2DAValidator} from "./interfaces/IL2DAValidator.sol";
 import {BinaryMerkleMultiproof} from "@blobstreamMain/lib/tree/binary/BinaryMerkleMultiproof.sol";
+import {BinaryMerkleTree} from "@blobstreamMain/lib/tree/binary/BinaryMerkletree.sol";
+import {NamespaceMerkleTree} from "@blobstreamMain/lib/tree/namespace/NamespaceMerkletree.sol";
+import {NamespaceNode} from "@blobstreamMain/lib/tree/namespace/NamespaceNode.sol";
+import {Namespace} from "@blobstreamMain/lib/tree/Types.sol";
 import {NamespaceMerkleMultiproof} from "@blobstreamMain/lib/tree/namespace/NamespaceMerkleMultiproof.sol";
 
 struct BlobInclusionProof {
@@ -15,6 +19,8 @@ struct BlobInclusionProof {
     BinaryMerkleMultiproof row_inclusion_range_proof;
     // The proofs for the shares into the row roots .
     NamespaceMerkleMultiproof[] share_to_row_root_proofs;
+    // The row roots of the rows spanned by the blob
+    NamespaceNode[] rowRoots;
     // The data root of the block containing the blob
     bytes32 dataRoot;
     // The height of the block containing the blob
@@ -37,9 +43,17 @@ contract CelestiaL2DAValidator is IL2DAValidator {
     ) external pure returns (bytes32 outputHash) {
         // The Merkle path is required to verify the proof inclusion. The `outputHash` is used as a leaf in the Merkle tree.
         // outputHash = keccak256(_totalL2ToL1PubdataAndStateDiffs);
+        Namespace memory ns = Namespace(0x00, 0x00000000000000000000000000000000000000000000000102030405);
         BlobInclusionProof memory payload = abi.decode(_totalL2ToL1PubdataAndStateDiffs, (BlobInclusionProof));
 
-        // TODO: verify the merkle proofs
+        for (uint256 i = 0; i < payload.share_to_row_root_proofs.length; i++) {
+            NamespaceMerkleMultiproof memory proof = payload.share_to_row_root_proofs[i];
+            require(NamespaceMerkleTree.verifyMultiproof(
+                payload.rowRoots[i],
+                proof,
+                ns
+            ));
+        }
 
         outputHash = payload.dataRoot;
 
