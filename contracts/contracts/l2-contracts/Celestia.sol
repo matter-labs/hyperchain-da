@@ -10,7 +10,7 @@ import {NamespaceMerkleMultiproof} from "@blobstreamMain/lib/tree/namespace/Name
 
 struct BlobInclusionProof {
     // the blob (the pubdata)
-    bytes blob;
+    bytes[] blob;
     // The multiproof for the row roots into the data root
     BinaryMerkleMultiproof row_inclusion_range_proof;
     // The proofs for the shares into the row roots .
@@ -37,8 +37,11 @@ contract CelestiaL2DAValidator is IL2DAValidator {
     ) external pure returns (bytes32 outputHash) {
         // The Merkle path is required to verify the proof inclusion. The `outputHash` is used as a leaf in the Merkle tree.
         // outputHash = keccak256(_totalL2ToL1PubdataAndStateDiffs);
-        BlobInclusionProof memory proof = abi.decode(_totalL2ToL1PubdataAndStateDiffs, (BlobInclusionProof));
+        BlobInclusionProof memory payload = abi.decode(_totalL2ToL1PubdataAndStateDiffs, (BlobInclusionProof));
 
+        // TODO: verify the merkle proofs
+
+        outputHash = payload.dataRoot;
 
     }
 }

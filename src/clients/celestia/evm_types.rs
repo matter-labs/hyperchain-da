@@ -9,6 +9,7 @@ use nmt_rs::{
 };
 use anyhow::anyhow;
 use zksync_da_client::types::DAError;
+use alloy_sol_types::private::Bytes;
 
 use crate::clients::celestia::client::BlobInclusionProof as CelestiaBlobInclusionProof;
 
@@ -86,9 +87,9 @@ impl TryFrom<CelestiaBlobInclusionProof> for BlobInclusionProof {
                 }),
             })
             .collect();
-        //let blob_shares: Vec<&[u8]> = payload.blob.iter().map(|x| &x[..]).collect();
+        let blob_bytes: Vec<Bytes> = payload.blob.into_iter().map(Bytes::from).collect();
         Ok(BlobInclusionProof {
-            blob: payload.blob.into(),
+            blob: blob_bytes,
             row_inclusion_range_proof: payload.row_inclusion_range_proof.try_into()?,
             share_to_row_root_proofs: proofs?.iter()
                 .map(|proof| proof.clone().try_into())

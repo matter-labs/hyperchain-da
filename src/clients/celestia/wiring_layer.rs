@@ -21,7 +21,7 @@ impl CelestiaWiringLayer {
         }
     }
 }
-
+/*
 #[async_trait::async_trait]
 impl WiringLayer for CelestiaWiringLayer {
     fn layer_name(&self) -> &'static str {
@@ -36,3 +36,4 @@ impl WiringLayer for CelestiaWiringLayer {
         Ok(())
     }
 }
+*/
