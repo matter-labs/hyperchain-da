@@ -5,12 +5,15 @@ pragma solidity 0.8.24;
 // solhint-disable gas-custom-errors, reason-string
 
 import {IL2DAValidator} from "./interfaces/IL2DAValidator.sol";
-import {BinaryMerkleMultiproof} from "@blobstreamMain/lib/tree/binary/BinaryMerkleMultiproof.sol";
+/*import {BinaryMerkleMultiproof} from "@blobstreamMain/lib/tree/binary/BinaryMerkleMultiproof.sol";
 import {BinaryMerkleTree} from "@blobstreamMain/lib/tree/binary/BinaryMerkletree.sol";
 import {NamespaceMerkleTree} from "@blobstreamMain/lib/tree/namespace/NamespaceMerkletree.sol";
 import {NamespaceNode} from "@blobstreamMain/lib/tree/namespace/NamespaceNode.sol";
 import {Namespace} from "@blobstreamMain/lib/tree/Types.sol";
-import {NamespaceMerkleMultiproof} from "@blobstreamMain/lib/tree/namespace/NamespaceMerkleMultiproof.sol";
+import {NamespaceMerkleMultiproof} from "@blobstreamMain/lib/tree/namespace/NamespaceMerkleMultiproof.sol";*/
+import "../../lib/blobstream-contracts.git/src/lib/tree/binary/BinaryMerkleMultiproof.sol";
+import "../../lib/blobstream-contracts.git/src/lib/tree/binary/BinaryMerkletree.sol";
+import "../../lib/blobstream-contracts.git/src/lib/tree/namespace/NamespaceMerkletree.sol";
 
 struct BlobInclusionProof {
     // the blob (the pubdata)
