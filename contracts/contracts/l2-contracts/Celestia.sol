@@ -14,6 +14,7 @@ import {NamespaceMerkleMultiproof} from "@blobstreamMain/lib/tree/namespace/Name
 import "../../lib/blobstream-contracts.git/src/lib/tree/binary/BinaryMerkleMultiproof.sol";
 import "../../lib/blobstream-contracts.git/src/lib/tree/binary/BinaryMerkletree.sol";
 import "../../lib/blobstream-contracts.git/src/lib/tree/namespace/NamespaceMerkletree.sol";
+import {DAVerifier} from "../../lib/blobstream-contracts.git/src/lib/verifier/DAVerifier.sol";
 
 struct BlobInclusionProof {
     // the blob (the pubdata)
@@ -49,14 +50,30 @@ contract CelestiaL2DAValidator is IL2DAValidator {
         Namespace memory ns = Namespace(0x00, 0x00000000000000000000000000000000000000000000000102030405);
         BlobInclusionProof memory payload = abi.decode(_totalL2ToL1PubdataAndStateDiffs, (BlobInclusionProof));
 
-        for (uint256 i = 0; i < payload.share_to_row_root_proofs.length; i++) {
+        uint start = 0;
+        for (uint i = 0; i < payload.share_to_row_root_proofs.length; i++) {
             NamespaceMerkleMultiproof memory proof = payload.share_to_row_root_proofs[i];
-            require(NamespaceMerkleTree.verifyMultiproof(
+            uint end = start + proof.endKey - proof.beginKey;
+
+            /* this can be optimized by using calldata,
+               but currently I am leveraging ABI deserialization for convenience
+               We may need to optimize later.
+            */
+            (bytes[] memory slice, DAVerifier.ErrorCodes err) = DAVerifier.slice(payload.blob, start, end);
+            require(NamespaceMerkleTree.verifyMulti(
                 payload.rowRoots[i],
                 proof,
-                ns
+                ns,
+                slice
             ));
+            start = end;
         }
+
+        require(BinaryMerkleTree.verifyMulti(
+            payload.rowRoots,
+            payload.row_inclusion_range_proof,
+            payload.dataRoot
+        ));
 
         outputHash = payload.dataRoot;
 
