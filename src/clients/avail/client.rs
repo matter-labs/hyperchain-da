@@ -13,6 +13,7 @@ use avail_subxt::{
 use reqwest::Response;
 use serde::Deserialize;
 use std::fmt::{Debug, Formatter};
+use std::sync::Arc;
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
 use tokio::time::{sleep, Duration};
 use zksync_da_client::{
@@ -20,7 +21,6 @@ use zksync_da_client::{
     DataAvailabilityClient,
 };
 use zksync_env_config::FromEnv;
-use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use avail_subxt::{
@@ -124,7 +124,10 @@ impl DataAvailabilityClient for AvailClient {
             &self.client,
             &call,
             &self.keypair,
-            AppId(u32::try_from(self.config.app_id).map_err(|e| self.to_non_transient_da_error(e.into()))?),
+            AppId(
+                u32::try_from(self.config.app_id)
+                    .map_err(|e| self.to_non_transient_da_error(e.into()))?,
+            ),
             nonce,
         )
         .await
@@ -135,12 +138,16 @@ impl DataAvailabilityClient for AvailClient {
             .block_hash();
 
         // Retrieve the data from the block hash
-        let block = self.client
+        let block = self
+            .client
             .blocks()
             .at(block_hash)
             .await
             .map_err(|e| self.to_non_transient_da_error(e.into()))?;
-        let extrinsics = block.extrinsics().await.map_err(|e| self.to_non_transient_da_error(e.into()))?;
+        let extrinsics = block
+            .extrinsics()
+            .await
+            .map_err(|e| self.to_non_transient_da_error(e.into()))?;
         let mut found = false;
         let mut tx_idx = 0;
         for ext in extrinsics.iter() {
@@ -182,11 +189,19 @@ impl DataAvailabilityClient for AvailClient {
         let mut response: Response;
         let mut retries = 0usize;
         loop {
-            response = self.api_client.get(&url).send().await.map_err(|e| self.to_non_transient_da_error(e.into()))?;
+            response = self
+                .api_client
+                .get(&url)
+                .send()
+                .await
+                .map_err(|e| self.to_non_transient_da_error(e.into()))?;
             if response.status().is_success() {
                 break;
             }
-            sleep(Duration::from_secs(u64::try_from(self.config.timeout).unwrap())).await;
+            sleep(Duration::from_secs(
+                u64::try_from(self.config.timeout).unwrap(),
+            ))
+            .await;
             retries += 1;
             if retries > self.config.max_retries {
                 return Err(DAError {
@@ -195,8 +210,10 @@ impl DataAvailabilityClient for AvailClient {
                 });
             }
         }
-        let bridge_api_data: BridgeAPIResponse =
-            response.json().await.map_err(|e| self.to_non_transient_da_error(e.into()))?;
+        let bridge_api_data: BridgeAPIResponse = response
+            .json()
+            .await
+            .map_err(|e| self.to_non_transient_da_error(e.into()))?;
         let attestation_data: MerkleProofInput = MerkleProofInput {
             dataRootProof: bridge_api_data.data_root_proof,
             leafProof: bridge_api_data.leaf_proof,
