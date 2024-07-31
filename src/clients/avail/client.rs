@@ -17,7 +17,7 @@ use std::sync::Arc;
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
 use tokio::time::{sleep, Duration};
 use zksync_da_client::{
-    types::{self, DAError, InclusionData},
+    types::{self, DAError, DispatchResponse, InclusionData},
     DataAvailabilityClient,
 };
 use zksync_env_config::FromEnv;
@@ -112,7 +112,7 @@ impl DataAvailabilityClient for AvailClient {
         &self,
         _batch_number: u32,
         data: Vec<u8>,
-    ) -> Result<types::DispatchResponse, types::DAError> {
+    ) -> Result<DispatchResponse, DAError> {
         let call = api::tx()
             .data_availability()
             .submit_data(BoundedVec(data.clone()));
@@ -169,7 +169,7 @@ impl DataAvailabilityClient for AvailClient {
             });
         }
 
-        Ok(types::DispatchResponse {
+        Ok(DispatchResponse {
             blob_id: format!("{}:{}", block_hash, tx_idx),
         })
     }
