@@ -25,7 +25,7 @@ impl WiringLayer for AvailWiringLayer {
     }
 
     async fn wire(self: Box<Self>, mut context: ServiceContext<'_>) -> Result<(), WiringError> {
-        let client: Box<dyn DataAvailabilityClient> = Box::new(AvailClient::new()?);
+        let client: Box<dyn DataAvailabilityClient> = Box::new(AvailClient::new().await?);
 
         context.insert_resource(DAClientResource(client))?;
 
