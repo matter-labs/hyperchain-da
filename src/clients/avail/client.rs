@@ -11,7 +11,7 @@ use avail_subxt::{
     AvailClient as AvailSubxtClient,
 };
 use reqwest::Response;
-use serde::{de::Error, Deserialize};
+use serde::{Deserialize};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};

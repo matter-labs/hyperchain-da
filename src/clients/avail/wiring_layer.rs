@@ -3,7 +3,6 @@ use crate::clients::avail::{client::AvailClient, config::AvailConfig};
 use zksync_da_client::DataAvailabilityClient;
 use zksync_node_framework::implementations::resources::da_client::DAClientResource;
 use zksync_node_framework::{
-    service::ServiceContext,
     wiring_layer::{WiringError, WiringLayer},
     IntoContext,
 };
