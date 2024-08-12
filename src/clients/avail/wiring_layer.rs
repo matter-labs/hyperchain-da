@@ -4,8 +4,8 @@ use zksync_da_client::DataAvailabilityClient;
 use zksync_node_framework::implementations::resources::da_client::DAClientResource;
 use zksync_node_framework::{
     service::ServiceContext,
-    IntoContext,
     wiring_layer::{WiringError, WiringLayer},
+    IntoContext,
 };
 
 #[derive(Debug)]
