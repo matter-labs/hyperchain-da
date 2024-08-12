@@ -11,7 +11,7 @@ use avail_subxt::{
     AvailClient as AvailSubxtClient,
 };
 use reqwest::Response;
-use serde::Deserialize;
+use serde::{de::Error, Deserialize};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
@@ -80,12 +80,12 @@ impl AvailClient {
 
         let mnemonic = Mnemonic::parse(&config.seed).map_err(|e| types::DAError {
             error: e.into(),
-            is_transient: false,
+            is_retriable: false,
         })?;
 
         let keypair = Keypair::from_phrase(&mnemonic, None).map_err(|e| types::DAError {
             error: e.into(),
-            is_transient: false,
+            is_retriable: false,
         })?;
 
         let api_client = reqwest::Client::new();
@@ -98,10 +98,10 @@ impl AvailClient {
         })
     }
 
-    fn to_non_transient_da_error(&self, error: anyhow::Error) -> types::DAError {
+    fn to_non_retriable_da_error(&self, error: anyhow::Error) -> types::DAError {
         DAError {
             error,
-            is_transient: false,
+            is_retriable: false,
         }
     }
 }
@@ -119,22 +119,19 @@ impl DataAvailabilityClient for AvailClient {
 
         let nonce = avail_subxt::tx::nonce(&self.client, &self.keypair)
             .await
-            .map_err(|e| self.to_non_transient_da_error(e.into()))?;
+            .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
         let tx_progress = tx::send_with_nonce(
             &self.client,
             &call,
             &self.keypair,
-            AppId(
-                u32::try_from(self.config.app_id)
-                    .map_err(|e| self.to_non_transient_da_error(e.into()))?,
-            ),
+            AppId(self.config.app_id),
             nonce,
         )
         .await
-        .map_err(|e| self.to_non_transient_da_error(e.into()))?;
+        .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
         let block_hash = tx::then_in_block(tx_progress)
             .await
-            .map_err(|e| self.to_non_transient_da_error(e.into()))?
+            .map_err(|e| self.to_non_retriable_da_error(e.into()))?
             .block_hash();
 
         // Retrieve the data from the block hash
@@ -143,15 +140,15 @@ impl DataAvailabilityClient for AvailClient {
             .blocks()
             .at(block_hash)
             .await
-            .map_err(|e| self.to_non_transient_da_error(e.into()))?;
+            .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
         let extrinsics = block
             .extrinsics()
             .await
-            .map_err(|e| self.to_non_transient_da_error(e.into()))?;
+            .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
         let mut found = false;
         let mut tx_idx = 0;
         for ext in extrinsics.iter() {
-            let ext = ext.map_err(|e| self.to_non_transient_da_error(e.into()))?;
+            let ext = ext.map_err(|e| self.to_non_retriable_da_error(e.into()))?;
             let call = ext.as_extrinsic::<SubmitData>();
             if let Ok(Some(call)) = call {
                 if data.clone() == call.data.0 {
@@ -165,7 +162,7 @@ impl DataAvailabilityClient for AvailClient {
         if !found {
             return Err(DAError {
                 error: anyhow!("No DA submission found in block: {}", block_hash),
-                is_transient: false,
+                is_retriable: false,
             });
         }
 
@@ -180,7 +177,7 @@ impl DataAvailabilityClient for AvailClient {
     ) -> Result<Option<types::InclusionData>, types::DAError> {
         let (block_hash, tx_idx) = blob_id.split_once(':').ok_or_else(|| DAError {
             error: anyhow!("Invalid blob ID format"),
-            is_transient: false,
+            is_retriable: false,
         })?;
         let url = format!(
             "{}/eth/proof/{}?index={}",
@@ -194,7 +191,7 @@ impl DataAvailabilityClient for AvailClient {
                 .get(&url)
                 .send()
                 .await
-                .map_err(|e| self.to_non_transient_da_error(e.into()))?;
+                .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
             if response.status().is_success() {
                 break;
             }
@@ -206,14 +203,14 @@ impl DataAvailabilityClient for AvailClient {
             if retries > self.config.max_retries {
                 return Err(DAError {
                     error: anyhow!("Failed to get inclusion data"),
-                    is_transient: true,
+                    is_retriable: true,
                 });
             }
         }
         let bridge_api_data: BridgeAPIResponse = response
             .json()
             .await
-            .map_err(|e| self.to_non_transient_da_error(e.into()))?;
+            .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
         let attestation_data: MerkleProofInput = MerkleProofInput {
             dataRootProof: bridge_api_data.data_root_proof,
             leafProof: bridge_api_data.leaf_proof,

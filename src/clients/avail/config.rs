@@ -8,7 +8,7 @@ pub struct AvailConfig {
     pub api_node_url: String,
     pub bridge_api_url: String,
     pub seed: String,
-    pub app_id: usize,
+    pub app_id: u32,
     pub timeout: usize,
     pub max_retries: usize,
 }
@@ -31,7 +31,7 @@ mod tests {
         seed: &str,
         api_node_url: &str,
         bridge_api_url: &str,
-        app_id: usize,
+        app_id: u32,
         timeout: usize,
         max_retries: usize,
     ) -> AvailConfig {
@@ -64,7 +64,7 @@ mod tests {
                 "bottom drive obey lake curtain smoke basket hold race lonely fit walk",
                 "localhost:12345",
                 "localhost:54321",
-                "1".parse::<usize>().unwrap(),
+                "1".parse::<u32>().unwrap(),
                 "2".parse::<usize>().unwrap(),
                 "3".parse::<usize>().unwrap(),
             )

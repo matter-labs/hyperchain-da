@@ -10,13 +10,13 @@ serde = { version = "1", features = ["derive"] }
 zksync_node_framework = { package = "zksync_node_framework", path = "../zksync-era/core/node/node_framework" }
 zksync_env_config = { package = "zksync_env_config", path = "../zksync-era/core/lib/env_config" }
 zksync_da_client = { package = "zksync_da_client", path = "../zksync-era/core/lib/da_client" }
-avail-subxt= { git = "https://github.com/availproject/avail.git", tag = "v2.2.4.0-rc1", optional = true }
-avail-core = { git = "https://github.com/availproject/avail-core.git", tag = "node-v2230-rc2", optional = true }
+avail-subxt= { git = "https://github.com/availproject/avail", tag = "v2.2.5.0-rc1", optional = true}
+avail-core = {  git = "https://github.com/availproject/avail-core", tag = "core-node-1", optional = true}
 subxt-signer = { version = "0.34", optional = true }
 reqwest = { version = "0.12.5", optional = true }
 alloy = { version = "0.1.2", features = [ "full" ], optional = true }
 tokio = { version= "1.38.0", optional = true }
 
 [features]
-avail = ["alloy", "avail-subxt", "avail-core", "subxt-signer", "reqwest", "tokio"]
+default = ["alloy", "avail-subxt", "avail-core", "subxt-signer", "reqwest", "tokio"]
 celestia = []
