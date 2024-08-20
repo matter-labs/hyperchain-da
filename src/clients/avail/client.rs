@@ -76,7 +76,10 @@ impl AvailClient {
     pub async fn new() -> anyhow::Result<Self> {
         let config = AvailConfig::from_env()?;
 
-        let client = AvailSubxtClient::new(config.api_node_url.clone()).await?;
+        let client = AvailSubxtClient::new(config.api_node_url.clone()).await.map_err(|e| types::DAError {
+            error: e.into(),
+            is_retriable: false,
+        })?;
 
         let mnemonic = Mnemonic::parse(&config.seed).map_err(|e| types::DAError {
             error: e.into(),
@@ -116,16 +119,11 @@ impl DataAvailabilityClient for AvailClient {
         let call = api::tx()
             .data_availability()
             .submit_data(BoundedVec(data.clone()));
-
-        let nonce = avail_subxt::tx::nonce(&self.client, &self.keypair)
-            .await
-            .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
-        let tx_progress = tx::send_with_nonce(
+        let tx_progress = tx::send(
             &self.client,
             &call,
             &self.keypair,
-            AppId(self.config.app_id),
-            nonce,
+            AppId(self.config.app_id)
         )
         .await
         .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
@@ -173,56 +171,59 @@ impl DataAvailabilityClient for AvailClient {
 
     async fn get_inclusion_data(
         &self,
-        blob_id: &str,
+        _blob_id: &str,
     ) -> Result<Option<types::InclusionData>, types::DAError> {
-        let (block_hash, tx_idx) = blob_id.split_once(':').ok_or_else(|| DAError {
-            error: anyhow!("Invalid blob ID format"),
-            is_retriable: false,
-        })?;
-        let url = format!(
-            "{}/eth/proof/{}?index={}",
-            self.config.bridge_api_url, block_hash, tx_idx
-        );
-        let mut response: Response;
-        let mut retries = 0usize;
-        loop {
-            response = self
-                .api_client
-                .get(&url)
-                .send()
-                .await
-                .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
-            if response.status().is_success() {
-                break;
-            }
-            sleep(Duration::from_secs(
-                u64::try_from(self.config.timeout).unwrap(),
-            ))
-            .await;
-            retries += 1;
-            if retries > self.config.max_retries {
-                return Err(DAError {
-                    error: anyhow!("Failed to get inclusion data"),
-                    is_retriable: true,
-                });
-            }
-        }
-        let bridge_api_data: BridgeAPIResponse = response
-            .json()
-            .await
-            .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
-        let attestation_data: MerkleProofInput = MerkleProofInput {
-            dataRootProof: bridge_api_data.data_root_proof,
-            leafProof: bridge_api_data.leaf_proof,
-            rangeHash: bridge_api_data.range_hash,
-            dataRootIndex: bridge_api_data.data_root_index,
-            blobRoot: bridge_api_data.blob_root,
-            bridgeRoot: bridge_api_data.bridge_root,
-            leaf: bridge_api_data.leaf,
-            leafIndex: bridge_api_data.leaf_index,
-        };
+        // let (block_hash, tx_idx) = blob_id.split_once(':').ok_or_else(|| DAError {
+        //     error: anyhow!("Invalid blob ID format"),
+        //     is_retriable: false,
+        // })?;
+        // let url = format!(
+        //     "{}/eth/proof/{}?index={}",
+        //     self.config.bridge_api_url, block_hash, tx_idx
+        // );
+        // let mut response: Response;
+        // let mut retries = 0usize;
+        // loop {
+        //     response = self
+        //         .api_client
+        //         .get(&url)
+        //         .send()
+        //         .await
+        //         .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
+        //     if response.status().is_success() {
+        //         break;
+        //     }
+        //     sleep(Duration::from_secs(
+        //         u64::try_from(self.config.timeout).unwrap(),
+        //     ))
+        //     .await;
+        //     retries += 1;
+        //     if retries > self.config.max_retries {
+        //         return Err(DAError {
+        //             error: anyhow!("Failed to get inclusion data"),
+        //             is_retriable: true,
+        //         });
+        //     }
+        // }
+        // let bridge_api_data: BridgeAPIResponse = response
+        //     .json()
+        //     .await
+        //     .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
+        // let attestation_data: MerkleProofInput = MerkleProofInput {
+        //     dataRootProof: bridge_api_data.data_root_proof,
+        //     leafProof: bridge_api_data.leaf_proof,
+        //     rangeHash: bridge_api_data.range_hash,
+        //     dataRootIndex: bridge_api_data.data_root_index,
+        //     blobRoot: bridge_api_data.blob_root,
+        //     bridgeRoot: bridge_api_data.bridge_root,
+        //     leaf: bridge_api_data.leaf,
+        //     leafIndex: bridge_api_data.leaf_index,
+        // };
+        // Ok(Some(InclusionData {
+        //     data: attestation_data.abi_encode(),
+        // }))
         Ok(Some(InclusionData {
-            data: attestation_data.abi_encode(),
+            data: vec![],
         }))
     }
 
