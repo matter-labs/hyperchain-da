@@ -11,7 +11,7 @@ use avail_subxt::{
     AvailClient as AvailSubxtClient,
 };
 use reqwest::Response;
-use serde::{Deserialize};
+use serde::Deserialize;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
@@ -76,10 +76,12 @@ impl AvailClient {
     pub async fn new() -> anyhow::Result<Self> {
         let config = AvailConfig::from_env()?;
 
-        let client = AvailSubxtClient::new(config.api_node_url.clone()).await.map_err(|e| types::DAError {
-            error: e.into(),
-            is_retriable: false,
-        })?;
+        let client = AvailSubxtClient::new(config.api_node_url.clone())
+            .await
+            .map_err(|e| types::DAError {
+                error: e.into(),
+                is_retriable: false,
+            })?;
 
         let mnemonic = Mnemonic::parse(&config.seed).map_err(|e| types::DAError {
             error: e.into(),
@@ -123,7 +125,7 @@ impl DataAvailabilityClient for AvailClient {
             &self.client,
             &call,
             &self.keypair,
-            AppId(self.config.app_id)
+            AppId(self.config.app_id),
         )
         .await
         .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
@@ -222,9 +224,7 @@ impl DataAvailabilityClient for AvailClient {
         // Ok(Some(InclusionData {
         //     data: attestation_data.abi_encode(),
         // }))
-        Ok(Some(InclusionData {
-            data: vec![],
-        }))
+        Ok(Some(InclusionData { data: vec![] }))
     }
 
     fn clone_boxed(&self) -> Box<dyn DataAvailabilityClient> {

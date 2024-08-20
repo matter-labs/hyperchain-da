@@ -18,5 +18,5 @@ alloy = { version = "0.1.2", features = [ "full" ], optional = true }
 tokio = { version= "1.38.0", optional = true }
 
 [features]
-default = ["alloy", "avail-subxt", "avail-core", "subxt-signer", "reqwest", "tokio"]
+avail = ["alloy", "avail-subxt", "avail-core", "subxt-signer", "reqwest", "tokio"]
 celestia = []

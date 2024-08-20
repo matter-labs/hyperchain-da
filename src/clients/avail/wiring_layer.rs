@@ -8,12 +8,11 @@ use zksync_node_framework::{
 };
 
 #[derive(Debug)]
-pub struct AvailWiringLayer {
-}
+pub struct AvailWiringLayer {}
 
 impl AvailWiringLayer {
     pub fn new() -> Self {
-        Self { }
+        Self {}
     }
 }
 
