@@ -7,6 +7,10 @@ remappings = [
     "l2-contracts/=lib/era-contracts/l2-contracts/contracts/",
     "blobstreamx/=lib/blobstreamx/contracts/src/",
     "@blobstream/=lib/blobstreamx/contracts/lib/blobstream-contracts/src/",
+    # note: this repo has unaudited changes that didn't make it into Succinct's repo yet
+    # so we re-import it as @blobstreamMain
+    # this can be fixed eventually
+    "@blobstreamMain/=lib/blobstream-contracts.git/src",
     "@openzeppelin-upgradeable/=lib/blobstreamx/contracts/lib/succinctx/contracts/lib/openzeppelin-contracts-upgradeable/",
     "@openzeppelin/=lib/blobstreamx/contracts/lib/succinctx/contracts/lib/openzeppelin-contracts/contracts/",
     "@succinctx/=lib/blobstreamx/contracts/lib/succinctx/contracts/src/",
