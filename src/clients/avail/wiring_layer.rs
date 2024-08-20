@@ -9,12 +9,11 @@ use zksync_node_framework::{
 
 #[derive(Debug)]
 pub struct AvailWiringLayer {
-    config: AvailConfig,
 }
 
 impl AvailWiringLayer {
-    pub fn new(config: AvailConfig) -> Self {
-        Self { config }
+    pub fn new() -> Self {
+        Self { }
     }
 }
 
