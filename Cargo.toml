@@ -4,10 +4,27 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-trait = "0.1"
+alloy = { version = "0.2.1", features = [ "full" ] }
 anyhow = "1"
+async-trait = "0.1"
+bs58 = "0.5.1"
+hex = "0.4.3"
+reqwest = "0.12.5"
 serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.125"
+tokio = { version= "1.38.0" }
 
-zksync_node_framework = { package = "zksync_node_framework", path = "../zksync-era/core/node/node_framework" }
-zksync_env_config = { package = "zksync_env_config", path = "../zksync-era/core/lib/env_config" }
-zksync_da_client = { package = "zksync_da_client", path = "../zksync-era/core/lib/da_client" }
+
+# ZKSYNC_ERA DEPS
+
+zksync_node_framework = { git = "https://github.com/matter-labs/zksync-era.git" }
+zksync_env_config = { git = "https://github.com/matter-labs/zksync-era.git" }
+zksync_da_client = { git = "https://github.com/matter-labs/zksync-era.git" }
+
+# NEAR DEPS
+near-da-rpc = { git = "https://github.com/Nuffle-Labs/data-availability.git" }
+near-da-primitives = { git = "https://github.com/Nuffle-Labs/data-availability.git" }
+near-jsonrpc-client = "0.11.0"
+
+
+
