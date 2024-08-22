@@ -151,7 +151,10 @@ impl DataAvailabilityClient for AvailClient {
         }
 
         if !found {
-            return Err(to_non_retriable_da_error(anyhow!("No DA submission found in block: {}", block_hash)));
+            return Err(to_non_retriable_da_error(anyhow!(
+                "No DA submission found in block: {}",
+                block_hash
+            )));
         }
 
         Ok(DispatchResponse {
