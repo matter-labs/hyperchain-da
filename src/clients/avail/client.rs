@@ -73,6 +73,8 @@ sol! {
 }
 
 impl AvailClient {
+    const MAX_BLOB_SIZE: usize = 512 * 1024; // 512 kibibytes
+
     pub async fn new() -> anyhow::Result<Self> {
         let config = AvailConfig::from_env()?;
 
@@ -223,7 +225,7 @@ impl DataAvailabilityClient for AvailClient {
     }
 
     fn blob_size_limit(&self) -> Option<usize> {
-        Some(usize::try_from(512 * 1024).unwrap())
+        Some(AvailClient::MAX_BLOB_SIZE)
     }
 }
 
