@@ -1,22 +1,40 @@
-[package]
-name = "hyperchain_da"
+[workspace]
+resolver = "2"
+members = [
+    "clients/implementations/avail",
+    "clients/implementations/celestia",
+    "clients/config/config",
+    "clients/config/proto_config",
+    "utils",
+]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
+authors = ["The Matter Labs Team <hello@matterlabs.dev>"]
+homepage = "https://zksync.io/"
+repository = "https://github.com/matter-labs/hyperchain-da"
+license = "MIT OR Apache-2.0"
+keywords = ["blockchain", "zksync", "data-availability"]
+categories = ["cryptography"]
 
-[dependencies]
+[workspace.dependencies]
 async-trait = "0.1"
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
-zksync_node_framework = { package = "zksync_node_framework", path = "../zksync-era/core/node/node_framework" }
-zksync_env_config = { package = "zksync_env_config", path = "../zksync-era/core/lib/env_config" }
-zksync_da_client = { package = "zksync_da_client", path = "../zksync-era/core/lib/da_client" }
-avail-subxt= { git = "https://github.com/availproject/avail", tag = "v2.2.5.0-rc1", optional = true}
-avail-core = {  git = "https://github.com/availproject/avail-core", tag = "core-node-1", optional = true}
-subxt-signer = { version = "0.34", optional = true }
-reqwest = { version = "0.12", optional = true }
-alloy = { version = "0.1", features = [ "full" ], optional = true }
-tokio = { version= "1", optional = true }
+serde_yaml = "0.9"
+serde_json = "1"
+tokio = "1"
+prost = "0.12"
 
-[features]
-avail = ["alloy", "avail-subxt", "avail-core", "subxt-signer", "reqwest", "tokio"]
-celestia = []
+zksync_node_framework = { git = "https://github.com/matter-labs/zksync-era", rev = "1ac52c5211983f4affbf04dbe23d354a5b4b67eb" }
+zksync_env_config = { git = "https://github.com/matter-labs/zksync-era", rev = "1ac52c5211983f4affbf04dbe23d354a5b4b67eb" }
+zksync_da_client = { git = "https://github.com/matter-labs/zksync-era", rev = "1ac52c5211983f4affbf04dbe23d354a5b4b67eb" }
+zksync_protobuf = "=0.1.0-rc.9"
+zksync_protobuf_build = "=0.1.0-rc.9"
+
+da_utils = { version = "0.1.0", path = "utils" }
+da_config = { version = "0.1.0", path = "clients/config/config" }
+proto_config = { version = "0.1.0", path = "clients/config/proto_config" }
+avail_client = { version = "0.1.0", path = "clients/implementations/avail" }
+celestia_client = { version = "0.1.0", path = "clients/implementations/celestia" }

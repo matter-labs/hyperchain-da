@@ -1,0 +1,20 @@
+[package]
+name = "da_config"
+description = "Configs for DA layers"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+zksync_env_config.workspace = true
+da_utils.workspace = true
+
+[build-dependencies]
+zksync_protobuf_build.workspace = true

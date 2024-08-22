@@ -6,11 +6,11 @@ use std::{
     sync::{Mutex, MutexGuard, PoisonError},
 };
 
-pub(crate) struct EnvMutex(Mutex<()>);
+pub struct EnvMutex(Mutex<()>);
 
 impl EnvMutex {
     /// Creates a new mutex. Separate mutexes can be used for changing env vars that do not intersect
-    /// (e.g., env vars for different configs).
+    /// (e.g., env vars for different config).
     pub const fn new() -> Self {
         Self(Mutex::new(()))
     }
@@ -28,7 +28,7 @@ impl EnvMutex {
 /// when the guard is dropped.
 #[must_use = "Environment will be reset when the guard is dropped"]
 #[derive(Debug)]
-pub(crate) struct EnvMutexGuard<'a> {
+pub struct EnvMutexGuard<'a> {
     _inner: MutexGuard<'a, ()>,
     redefined_vars: HashMap<OsString, Option<OsString>>,
 }
@@ -37,9 +37,9 @@ impl Drop for EnvMutexGuard<'_> {
     fn drop(&mut self) {
         for (env_name, value) in mem::take(&mut self.redefined_vars) {
             if let Some(value) = value {
-                env::set_var(env_name, value);
+                unsafe { env::set_var(env_name, value); }
             } else {
-                env::remove_var(env_name);
+                unsafe { env::remove_var(env_name); }
             }
         }
     }
@@ -47,7 +47,7 @@ impl Drop for EnvMutexGuard<'_> {
 
 impl EnvMutexGuard<'_> {
     /// Sets env vars specified in `.env`-like format.
-    pub fn set_env(&mut self, fixture: &str) {
+    pub unsafe fn set_env(&mut self, fixture: &str) {
         for line in fixture.split('\n').map(str::trim) {
             if line.is_empty() {
                 // Skip empty lines.

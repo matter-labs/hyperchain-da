@@ -1,8 +1,7 @@
-use crate::clients::avail::config::AvailConfig;
+use da_config::avail::AvailConfig;
 use alloy::{
     primitives::{B256, U256},
     sol,
-    sol_types::SolValue,
 };
 use async_trait::async_trait;
 use avail_core::AppId;
@@ -10,12 +9,10 @@ use avail_subxt::{
     api::{self},
     AvailClient as AvailSubxtClient,
 };
-use reqwest::Response;
 use serde::Deserialize;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
-use tokio::time::{sleep, Duration};
 use zksync_da_client::{
     types::{self, DAError, DispatchResponse, InclusionData},
     DataAvailabilityClient,
@@ -76,7 +73,10 @@ impl AvailClient {
     const MAX_BLOB_SIZE: usize = 512 * 1024; // 512 kibibytes
 
     pub async fn new() -> anyhow::Result<Self> {
-        let config = AvailConfig::from_env()?;
+        let config = match da_utils::proto_config_parser::try_parse_proto_config::<proto_config::proto::avail::Avail>()? {
+            Some(config) => config,
+            None => AvailConfig::from_env()?,
+        };
 
         let client = AvailSubxtClient::new(config.api_node_url.clone())
             .await
@@ -120,8 +120,8 @@ impl DataAvailabilityClient for AvailClient {
             &self.keypair,
             AppId(self.config.app_id),
         )
-        .await
-        .map_err(to_non_retriable_da_error)?;
+            .await
+            .map_err(to_non_retriable_da_error)?;
         let block_hash = tx::then_in_block(tx_progress)
             .await
             .map_err(to_non_retriable_da_error)?

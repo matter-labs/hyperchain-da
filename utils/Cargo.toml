@@ -1,0 +1,24 @@
+[package]
+name = "da_utils"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish = false
+
+
+[dependencies]
+async-trait.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+tokio.workspace = true
+serde_yaml.workspace = true
+
+zksync_node_framework.workspace = true
+zksync_env_config.workspace = true
+zksync_da_client.workspace = true
+zksync_protobuf.workspace = true

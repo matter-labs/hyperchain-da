@@ -2,7 +2,6 @@ use serde::Deserialize;
 
 use zksync_env_config::{envy_load, FromEnv};
 
-// feel free to redefine all the fields in this struct, this is just a placeholder
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct AvailConfig {
     pub api_node_url: String,
@@ -22,8 +21,8 @@ impl FromEnv for AvailConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::clients::avail::config::AvailConfig;
-    use crate::test_utils::EnvMutex;
+    use crate::avail::AvailConfig;
+    use da_utils::test_utils::EnvMutex;
 
     static MUTEX: EnvMutex = EnvMutex::new();
 
@@ -56,7 +55,7 @@ mod tests {
             AVAIL_CLIENT_TIMEOUT=2
             AVAIL_CLIENT_MAX_RETRIES=3
         "#;
-        lock.set_env(config);
+        unsafe { lock.set_env(config); }
         let actual = AvailConfig::from_env().unwrap();
         assert_eq!(
             actual,
