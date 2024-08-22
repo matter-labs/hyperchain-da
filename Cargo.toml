@@ -27,11 +27,11 @@ serde_json = "1"
 tokio = "1"
 prost = "0.12"
 
-zksync_node_framework = { git = "https://github.com/matter-labs/zksync-era", rev = "1ac52c5211983f4affbf04dbe23d354a5b4b67eb" }
-zksync_env_config = { git = "https://github.com/matter-labs/zksync-era", rev = "1ac52c5211983f4affbf04dbe23d354a5b4b67eb" }
-zksync_da_client = { git = "https://github.com/matter-labs/zksync-era", rev = "1ac52c5211983f4affbf04dbe23d354a5b4b67eb" }
-zksync_protobuf = "=0.1.0-rc.9"
-zksync_protobuf_build = "=0.1.0-rc.9"
+zksync_node_framework = { git = "https://github.com/matter-labs/zksync-era", rev = "30edda404193938fbd55815bed164b5321d7c642" }
+zksync_env_config = { git = "https://github.com/matter-labs/zksync-era", rev = "30edda404193938fbd55815bed164b5321d7c642" }
+zksync_da_client = { git = "https://github.com/matter-labs/zksync-era", rev = "30edda404193938fbd55815bed164b5321d7c642" }
+zksync_protobuf = "=0.1.0-rc.11"
+zksync_protobuf_build = "=0.1.0-rc.11"
 
 da_utils = { version = "0.1.0", path = "utils" }
 da_config = { version = "0.1.0", path = "clients/config/config" }
