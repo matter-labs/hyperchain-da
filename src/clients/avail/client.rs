@@ -78,20 +78,11 @@ impl AvailClient {
 
         let client = AvailSubxtClient::new(config.api_node_url.clone())
             .await
-            .map_err(|e| types::DAError {
-                error: e.into(),
-                is_retriable: false,
-            })?;
+            .map_err(to_non_retriable_da_error)?;
 
-        let mnemonic = Mnemonic::parse(&config.seed).map_err(|e| types::DAError {
-            error: e.into(),
-            is_retriable: false,
-        })?;
+        let mnemonic = Mnemonic::parse(&config.seed).map_err(to_non_retriable_da_error)?;
 
-        let keypair = Keypair::from_phrase(&mnemonic, None).map_err(|e| types::DAError {
-            error: e.into(),
-            is_retriable: false,
-        })?;
+        let keypair = Keypair::from_phrase(&mnemonic, None).map_err(to_non_retriable_da_error)?;
 
         let api_client = reqwest::Client::new();
 
@@ -102,12 +93,12 @@ impl AvailClient {
             keypair,
         })
     }
+}
 
-    fn to_non_retriable_da_error(&self, error: anyhow::Error) -> types::DAError {
-        DAError {
-            error,
-            is_retriable: false,
-        }
+pub fn to_non_retriable_da_error(error: impl Into<anyhow::Error>) -> types::DAError {
+    DAError {
+        error: error.into(),
+        is_retriable: false,
     }
 }
 
@@ -128,10 +119,10 @@ impl DataAvailabilityClient for AvailClient {
             AppId(self.config.app_id),
         )
         .await
-        .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
+        .map_err(to_non_retriable_da_error)?;
         let block_hash = tx::then_in_block(tx_progress)
             .await
-            .map_err(|e| self.to_non_retriable_da_error(e.into()))?
+            .map_err(to_non_retriable_da_error)?
             .block_hash();
 
         // Retrieve the data from the block hash
@@ -140,15 +131,15 @@ impl DataAvailabilityClient for AvailClient {
             .blocks()
             .at(block_hash)
             .await
-            .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
+            .map_err(to_non_retriable_da_error)?;
         let extrinsics = block
             .extrinsics()
             .await
-            .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
+            .map_err(to_non_retriable_da_error)?;
         let mut found = false;
         let mut tx_idx = 0;
         for ext in extrinsics.iter() {
-            let ext = ext.map_err(|e| self.to_non_retriable_da_error(e.into()))?;
+            let ext = ext.map_err(to_non_retriable_da_error)?;
             let call = ext.as_extrinsic::<SubmitData>();
             if let Ok(Some(call)) = call {
                 if data.clone() == call.data.0 {
@@ -160,10 +151,7 @@ impl DataAvailabilityClient for AvailClient {
         }
 
         if !found {
-            return Err(DAError {
-                error: anyhow!("No DA submission found in block: {}", block_hash),
-                is_retriable: false,
-            });
+            return Err(to_non_retriable_da_error(anyhow!("No DA submission found in block: {}", block_hash)));
         }
 
         Ok(DispatchResponse {
@@ -191,7 +179,7 @@ impl DataAvailabilityClient for AvailClient {
         //         .get(&url)
         //         .send()
         //         .await
-        //         .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
+        //         .map_err(|e| self.to_non_retriable_da_error(e))?;
         //     if response.status().is_success() {
         //         break;
         //     }
@@ -210,7 +198,7 @@ impl DataAvailabilityClient for AvailClient {
         // let bridge_api_data: BridgeAPIResponse = response
         //     .json()
         //     .await
-        //     .map_err(|e| self.to_non_retriable_da_error(e.into()))?;
+        //     .map_err(|e| self.to_non_retriable_da_error(e))?;
         // let attestation_data: MerkleProofInput = MerkleProofInput {
         //     dataRootProof: bridge_api_data.data_root_proof,
         //     leafProof: bridge_api_data.leaf_proof,
