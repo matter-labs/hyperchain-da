@@ -1,9 +1,9 @@
-use std::fmt::{Debug, Formatter};
-use async_trait::async_trait;
 use crate::clients::celestia::config::CelestiaConfig;
+use async_trait::async_trait;
+use std::fmt::{Debug, Formatter};
 
+use zksync_da_client::{types, DataAvailabilityClient};
 use zksync_env_config::FromEnv;
-use zksync_da_client::{DataAvailabilityClient, types};
 
 #[derive(Clone)]
 pub struct CelestiaClient {
@@ -32,7 +32,10 @@ impl DataAvailabilityClient for CelestiaClient {
         todo!()
     }
 
-    async fn get_inclusion_data(&self, blob_id: String) -> Result<Option<types::InclusionData>, types::DAError> {
+    async fn get_inclusion_data(
+        &self,
+        blob_id: String,
+    ) -> Result<Option<types::InclusionData>, types::DAError> {
         todo!()
     }
 
