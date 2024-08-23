@@ -10,3 +10,8 @@ message Avail {
   optional uint64 timeout = 5;
   optional uint64 max_retries = 6;
 }
+
+// This wrapper is required to read the config from the file with nested structure
+message AvailConfig {
+  optional Avail avail = 1;
+}

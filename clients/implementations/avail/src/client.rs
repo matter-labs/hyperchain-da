@@ -18,6 +18,7 @@ use zksync_da_client::{
     DataAvailabilityClient,
 };
 use zksync_env_config::FromEnv;
+use da_utils::proto_config_parser::try_parse_proto_config;
 
 use anyhow::{anyhow, Result};
 use avail_subxt::{
@@ -73,7 +74,7 @@ impl AvailClient {
     const MAX_BLOB_SIZE: usize = 512 * 1024; // 512 kibibytes
 
     pub async fn new() -> anyhow::Result<Self> {
-        let config = match da_utils::proto_config_parser::try_parse_proto_config::<proto_config::proto::avail::Avail>()? {
+        let config = match try_parse_proto_config::<proto_config::proto::avail::AvailConfig>()? {
             Some(config) => config,
             None => AvailConfig::from_env()?,
         };

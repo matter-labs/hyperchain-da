@@ -13,8 +13,7 @@ pub fn try_parse_proto_config<T: ProtoRepr>() -> Result<Option<T::Type>, anyhow:
             let d = serde_yaml::Deserializer::from_str(yaml.as_str());
             let this: T = zksync_protobuf::serde::deserialize_proto_with_options(d, false)?;
 
-            let v = this.read()?;
-            return Ok(Some(v));
+            return Ok(Some(this.read()?));
         }
     }
 

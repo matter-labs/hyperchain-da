@@ -1,3 +1,2 @@
 pub mod proto;
-
-pub mod avail;
+mod avail;
