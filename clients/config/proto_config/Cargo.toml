@@ -1,0 +1,26 @@
+[package]
+name = "proto_config"
+description = "Protobuf deserialization for DA configs"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+links = "proto_config_proto"
+
+[dependencies]
+serde_json.workspace = true
+serde_yaml.workspace = true
+
+zksync_protobuf.workspace = true
+da_config.workspace = true
+
+anyhow.workspace = true
+prost.workspace = true
+
+[build-dependencies]
+zksync_protobuf_build.workspace = true

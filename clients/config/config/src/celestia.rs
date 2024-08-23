@@ -18,8 +18,8 @@ impl FromEnv for CelestiaConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::clients::celestia::config::CelestiaConfig;
-    use crate::test_utils::EnvMutex;
+    use crate::celestia::CelestiaConfig;
+    use da_utils::test_utils::EnvMutex;
 
     static MUTEX: EnvMutex = EnvMutex::new();
 
@@ -37,7 +37,7 @@ mod tests {
             CELESTIA_CLIENT_API_NODE_URL="localhost:12345"
             CELESTIA_CLIENT_PRIVATE_KEY="0xf55baf7c0e4e33b1d78fbf52f069c426bc36cff1aceb9bc8f45d14c07f034d73"
         "#;
-        lock.set_env(config);
+        unsafe { lock.set_env(config); }
         let actual = CelestiaConfig::from_env().unwrap();
         assert_eq!(
             actual,
