@@ -1,6 +1,7 @@
 use crate::clients::near::config::NearConfig;
 use alloy::{sol, sol_types::SolValue};
 use serde::Deserialize;
+use zksync_env_config::FromEnv;
 
 use std::{fmt::Debug, ops::Deref, sync::Arc};
 
@@ -15,6 +16,8 @@ use near_da_rpc::{
 };
 use near_jsonrpc_client::methods::light_client_proof::RpcLightClientExecutionProofResponse;
 use zksync_da_client::{types, DataAvailabilityClient};
+
+use crate::clients::near::evm_types::BlobInclusionProof;
 
 #[derive(Clone)]
 pub struct NearClient {
@@ -33,7 +36,9 @@ impl Debug for NearClient {
 }
 
 impl NearClient {
-    pub async fn new(config: NearConfig) -> Self {
+    pub async fn new() -> anyhow::Result<Self> {
+        let config = NearConfig::from_env().unwrap();
+
         let client_config = Config {
             key: KeyType::SecretKey(config.account_id.clone(), config.secret_key.clone()),
             network: Network::try_from(config.network.as_str()).unwrap(),
@@ -44,26 +49,17 @@ impl NearClient {
 
         let da_rpc_client = Client::new(&client_config);
 
-        Self {
+        Ok(Self {
             config,
             da_rpc_client: da_rpc_client.into(),
-        }
+        })
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct BasicProof {
+#[derive(Deserialize)]
+struct ProofResponse {
     head_block_root: CryptoHash,
     proof: RpcLightClientExecutionProofResponse,
-}
-
-sol! {
-    #[derive(Debug)]
-    struct NearBlobInclusionProof {
-        uint64 height;
-        bytes32[] dataRoot;
-        bytes32[] outcomeProof;
-    }
 }
 
 #[async_trait]
@@ -105,27 +101,9 @@ impl DataAvailabilityClient for NearClient {
             .await
             .unwrap();
 
-        let proof_response: BasicProof = response.json().await.unwrap();
+        let proof_response: ProofResponse = response.json().await.unwrap();
 
-        let attestation_data: NearBlobInclusionProof = NearBlobInclusionProof {
-            height: proof_response.proof.block_header_lite.inner_lite.height,
-            // Map the MercleHash from each root_proof item and convert them to FixedBytes<32>
-            dataRoot: proof_response
-                .proof
-                .outcome_root_proof
-                .iter()
-                .map(|x| x.hash.0.into())
-                .collect(),
-            outcomeProof: proof_response
-                .proof
-                .outcome_proof
-                .proof
-                .iter()
-                .map(|x| x.hash.0.into())
-                .collect(),
-        };
-
-        println!("Attestation Data: {:?}", attestation_data);
+        let attestation_data: BlobInclusionProof = proof_response.proof.try_into().unwrap();
 
         Ok(Some(types::InclusionData {
             data: attestation_data.abi_encode(),
