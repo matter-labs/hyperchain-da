@@ -1,0 +1,31 @@
+[package]
+name = "near_client"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish = false
+
+[dependencies]
+async-trait.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+zksync_node_framework.workspace = true
+zksync_env_config.workspace = true
+zksync_da_client.workspace = true
+tokio.workspace = true
+da_utils.workspace = true
+da_config.workspace = true
+
+near-da-rpc = { git = "https://github.com/Nuffle-Labs/data-availability.git" }
+near-da-primitives = { git = "https://github.com/Nuffle-Labs/data-availability.git" }
+near-jsonrpc-client = "0.12.0"
+near-primitives = "0.25.0"
+
+alloy = { version = "0.2.1", features = ["full"] }
+bs58 = "0.5.1"
+reqwest = { version = "0.12" }

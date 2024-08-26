@@ -1,4 +1,5 @@
 use serde::Deserialize;
+
 use zksync_env_config::{envy_load, FromEnv};
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]

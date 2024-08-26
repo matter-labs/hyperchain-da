@@ -1,0 +1,29 @@
+[package]
+name = "avail_client"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish = false
+
+[dependencies]
+async-trait.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+zksync_node_framework.workspace = true
+zksync_env_config.workspace = true
+zksync_da_client.workspace = true
+tokio.workspace = true
+da_utils.workspace = true
+da_config.workspace = true
+proto_config.workspace = true
+
+avail-subxt = { git = "https://github.com/availproject/avail", tag = "v2.2.5.0-rc1" }
+avail-core = { git = "https://github.com/availproject/avail-core", tag = "core-node-1" }
+subxt-signer = { version = "0.34" }
+reqwest = { version = "0.12" }
+alloy = { version = "0.1", features = ["full"] }

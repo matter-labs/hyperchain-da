@@ -1,4 +1,3 @@
-use crate::clients::near::config::NearConfig;
 use alloy::{sol, sol_types::SolValue};
 use serde::Deserialize;
 use zksync_env_config::FromEnv;
@@ -17,7 +16,8 @@ use near_da_rpc::{
 use near_jsonrpc_client::methods::light_client_proof::RpcLightClientExecutionProofResponse;
 use zksync_da_client::{types, DataAvailabilityClient};
 
-use crate::clients::near::evm_types::BlobInclusionProof;
+use crate::evm_types::BlobInclusionProof;
+use da_config::near::NearConfig;
 
 #[derive(Clone)]
 pub struct NearClient {

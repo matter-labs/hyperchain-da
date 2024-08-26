@@ -1,4 +1,4 @@
-use crate::clients::celestia::config::CelestiaConfig;
+use da_config::celestia::CelestiaConfig;
 use async_trait::async_trait;
 use std::fmt::{Debug, Formatter};
 
@@ -13,6 +13,7 @@ pub struct CelestiaClient {
 
 impl CelestiaClient {
     pub fn new() -> anyhow::Result<Self> {
+        // TODO: read proto config first
         let config = CelestiaConfig::from_env()?;
 
         Ok(Self {
@@ -26,16 +27,15 @@ impl CelestiaClient {
 impl DataAvailabilityClient for CelestiaClient {
     async fn dispatch_blob(
         &self,
-        batch_number: u32,
-        data: Vec<u8>,
+        _: u32, // batch_number
+        _: Vec<u8>, // data
     ) -> Result<types::DispatchResponse, types::DAError> {
         todo!()
     }
-
     async fn get_inclusion_data(
         &self,
-        blob_id: String,
-    ) -> Result<Option<types::InclusionData>, types::DAError> {
+        _blob_id: &str,
+    ) -> anyhow::Result<Option<types::InclusionData>, types::DAError> {
         todo!()
     }
 
@@ -43,8 +43,8 @@ impl DataAvailabilityClient for CelestiaClient {
         Box::new(self.clone())
     }
 
-    fn blob_size_limit(&self) -> usize {
-        1973786
+    fn blob_size_limit(&self) ->  Option<usize> {
+        Some(1973786)
     }
 }
 
