@@ -1,10 +1,8 @@
-use alloy::{sol, sol_types::SolValue};
+use alloy::sol_types::SolValue;
+use async_trait::async_trait;
 use serde::Deserialize;
-use zksync_env_config::FromEnv;
-
 use std::{fmt::Debug, ops::Deref, sync::Arc};
 
-use async_trait::async_trait;
 use near_da_primitives::{Blob, Mode};
 use near_da_rpc::{
     near::{
@@ -14,10 +12,13 @@ use near_da_rpc::{
     CryptoHash, DataAvailability,
 };
 use near_jsonrpc_client::methods::light_client_proof::RpcLightClientExecutionProofResponse;
+
 use zksync_da_client::{types, DataAvailabilityClient};
+use zksync_env_config::FromEnv;
 
 use crate::evm_types::BlobInclusionProof;
 use da_config::near::NearConfig;
+use da_utils::proto_config_parser::try_parse_proto_config;
 
 #[derive(Clone)]
 pub struct NearClient {
@@ -37,7 +38,10 @@ impl Debug for NearClient {
 
 impl NearClient {
     pub async fn new() -> anyhow::Result<Self> {
-        let config = NearConfig::from_env().unwrap();
+        let config = match try_parse_proto_config::<proto_config::proto::near::NearConfig>()? {
+            Some(config) => config,
+            None => NearConfig::from_env()?,
+        };
 
         let client_config = Config {
             key: KeyType::SecretKey(config.account_id.clone(), config.secret_key.clone()),

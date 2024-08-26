@@ -1,2 +1,3 @@
-pub mod proto;
 mod avail;
+mod near;
+pub mod proto;

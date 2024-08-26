@@ -1,0 +1,10 @@
+{
+  "rust-analyzer.linkedProjects": [
+    "Cargo.toml",
+    "clients/config/config/Cargo.toml",
+    "clients/config/proto_config/Cargo.toml",
+    "clients/implementations/avail/Cargo.toml",
+    "clients/implementations/celestia/Cargo.toml",
+    "clients/implementations/near/Cargo.toml",
+  ]
+}

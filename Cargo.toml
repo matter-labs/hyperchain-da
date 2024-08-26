@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "clients/implementations/avail",
     "clients/implementations/celestia",
+    "clients/implementations/near",
     "clients/config/config",
     "clients/config/proto_config",
     "utils",
@@ -38,3 +39,4 @@ da_config = { version = "0.1.0", path = "clients/config/config" }
 proto_config = { version = "0.1.0", path = "clients/config/proto_config" }
 avail_client = { version = "0.1.0", path = "clients/implementations/avail" }
 celestia_client = { version = "0.1.0", path = "clients/implementations/celestia" }
+near_client = { version = "0.1.0", path = "clients/implementations/near" }
