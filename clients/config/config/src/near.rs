@@ -20,8 +20,8 @@ impl FromEnv for NearConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::clients::near::config::NearConfig;
-    use crate::test_utils::EnvMutex;
+    use crate::near::NearConfig;
+    use da_utils::test_utils::EnvMutex;
 
     static MUTEX: EnvMutex = EnvMutex::new();
 
@@ -51,7 +51,9 @@ mod tests {
             NEAR_CLIENT_ACCOUNT_ID="test"
             NEAR_CLIENT_SECRET_KEY="test"
         "#;
-        lock.set_env(config);
+        unsafe {
+            lock.set_env(config);
+        }
         let actual = NearConfig::from_env().unwrap();
         assert_eq!(
             actual,
