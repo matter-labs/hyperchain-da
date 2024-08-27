@@ -1,4 +1,5 @@
-use alloy::sol_types::SolValue;
+use alloy::{primitives::Address, providers::ProviderBuilder, sol, sol_types::SolValue};
+use anyhow::anyhow;
 use async_trait::async_trait;
 use serde::Deserialize;
 use std::{fmt::Debug, ops::Deref, sync::Arc};
@@ -13,10 +14,14 @@ use near_da_rpc::{
 };
 use near_jsonrpc_client::methods::light_client_proof::RpcLightClientExecutionProofResponse;
 
-use zksync_da_client::{types, DataAvailabilityClient};
+use zksync_da_client::{
+    types::{self, DAError},
+    DataAvailabilityClient,
+};
 use zksync_env_config::FromEnv;
 
 use crate::evm_types::BlobInclusionProof;
+
 use da_config::near::NearConfig;
 use da_utils::proto_config_parser::try_parse_proto_config;
 
@@ -31,7 +36,7 @@ impl Debug for NearClient {
         f.debug_struct("NearClient")
             .field("config", &self.da_rpc_client.config)
             .field("client", &self.da_rpc_client.client)
-            .field("archive", &self.da_rpc_client.client)
+            .field("archive", &self.da_rpc_client.archive)
             .finish()
     }
 }
@@ -84,6 +89,14 @@ impl DataAvailabilityClient for NearClient {
         &self,
         blob_id: &str,
     ) -> Result<Option<types::InclusionData>, types::DAError> {
+        // Call bridge_contract `latestHeader` method to get the latest block hash
+
+        let provider = ProviderBuilder::new()
+            .on_http(reqwest::Url::parse("https://gateway.tenderly.co/public/sepolia").unwrap());
+        let bridge_address = self.config.bridge_contract.parse::<Address>().unwrap();
+        let bridge = INearX::new(bridge_address, provider);
+        let latest_header = bridge.latestHeader().call().await.unwrap()._0;
+
         // Obtain the inclusion data for the blob_id from the near light client using the POST /proof(blob_id) endpoint with reqwest
 
         let url = format!("{}/proof", self.config.light_client_url);
@@ -107,6 +120,15 @@ impl DataAvailabilityClient for NearClient {
 
         let proof_response: ProofResponse = response.json().await.unwrap();
 
+        let block_hash = proof_response.proof.block_header_lite.hash();
+
+        if block_hash.as_bytes() != latest_header.as_slice() {
+            return Err(DAError {
+                error: anyhow!("Latest header does not match inclusion proof block header"),
+                is_retriable: true,
+            });
+        }
+
         let attestation_data: BlobInclusionProof = proof_response.proof.try_into().unwrap();
 
         Ok(Some(types::InclusionData {
@@ -120,5 +142,12 @@ impl DataAvailabilityClient for NearClient {
 
     fn blob_size_limit(&self) -> std::option::Option<usize> {
         Some(1973786)
+    }
+}
+
+sol! {
+    #[sol(rpc)]
+    interface INearX {
+        function latestHeader() external view returns (bytes32);
     }
 }

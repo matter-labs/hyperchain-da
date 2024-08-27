@@ -7,6 +7,7 @@ pub struct NearConfig {
     pub light_client_url: String,
     pub network: String,
     pub contract: String,
+    pub bridge_contract: String,
     pub account_id: String,
     pub secret_key: String,
 }
@@ -29,6 +30,7 @@ mod tests {
         light_client_url: &str,
         network: &str,
         contract: &str,
+        bridge_contract: &str,
         account_id: &str,
         secret_key: &str,
     ) -> NearConfig {
@@ -36,6 +38,7 @@ mod tests {
             light_client_url: light_client_url.to_string(),
             network: network.to_string(),
             contract: contract.to_string(),
+            bridge_contract: bridge_contract.to_string(),
             account_id: account_id.to_string(),
             secret_key: secret_key.to_string(),
         }
@@ -47,9 +50,10 @@ mod tests {
         let config = r#"
             NEAR_CLIENT_LIGHT_CLIENT_URL="localhost:12345"
             NEAR_CLIENT_NETWORK="mainnet"
-            NEAR_CLIENT_CONTRACT="test"
-            NEAR_CLIENT_ACCOUNT_ID="test"
-            NEAR_CLIENT_SECRET_KEY="test"
+            NEAR_CLIENT_CONTRACT="blob-store.testnet"
+            NEAR_CLIENT_BRIDGE_CONTRACT="0x0000000000000000000000000000000000000001"
+            NEAR_CLIENT_ACCOUNT_ID="nearuser.testnet"
+            NEAR_CLIENT_SECRET_KEY="3D1vMSgusRrUsihyCnACWeMvLdq3ZfusFXrnU3jnSaWvexHuATq4T5EUyUasEM6C1WTdd87ArM5yYAAcn3sTrY6s"
         "#;
         unsafe {
             lock.set_env(config);
@@ -57,7 +61,7 @@ mod tests {
         let actual = NearConfig::from_env().unwrap();
         assert_eq!(
             actual,
-            expected_near_da_layer_config("localhost:12345", "mainnet", "test", "test", "test")
+            expected_near_da_layer_config("localhost:12345", "mainnet", "blob-store.testnet", "0x0000000000000000000000000000000000000001", "nearuser.testnet", "3D1vMSgusRrUsihyCnACWeMvLdq3ZfusFXrnU3jnSaWvexHuATq4T5EUyUasEM6C1WTdd87ArM5yYAAcn3sTrY6s")
         );
     }
 }

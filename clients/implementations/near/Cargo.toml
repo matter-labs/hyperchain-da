@@ -33,3 +33,4 @@ alloy = { version = "0.2.1", features = ["full"] }
 bs58 = "0.5.1"
 dotenvy = "0.15.7"
 reqwest = "0.12"
+

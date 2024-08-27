@@ -15,6 +15,9 @@ impl ProtoRepr for proto::NearConfig {
                 .clone(),
             network: required(&near.network).context("network")?.clone(),
             contract: required(&near.contract).context("contract")?.clone(),
+            bridge_contract: required(&near.bridge_contract)
+                .context("bridge_contract")?
+                .clone(),
             account_id: required(&near.account_id).context("account_id")?.clone(),
             secret_key: required(&near.secret_key).context("secret_key")?.clone(),
         })
@@ -26,6 +29,7 @@ impl ProtoRepr for proto::NearConfig {
                 light_client_url: Some(this.light_client_url.clone()),
                 network: Some(this.network.clone()),
                 contract: Some(this.contract.clone()),
+                bridge_contract: Some(this.bridge_contract.clone()),
                 account_id: Some(this.account_id.clone()),
                 secret_key: Some(this.secret_key.clone()),
             }),
