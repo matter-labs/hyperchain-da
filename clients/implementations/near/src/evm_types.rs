@@ -9,42 +9,47 @@ use near_primitives::{
     },
 };
 
+sol!(
+    #[sol(abi, rpc)]
+    NearX,
+    "contract/abi.json"
+);
+
 sol! {
-    #[derive(Debug)]
     struct BlobInclusionProof {
+        ExecutionProofResponse proof;
+        bytes32 headMerkleRoot;
+    }
+
+    struct ExecutionProofResponse {
         ExecutionOutcomeWithIdView outcomeProof;
         MerklePathItem[] outcomeRootProof;
         LightClientBlockLiteView blockHeaderLite;
         MerklePathItem[] blockProof;
     }
 
-    #[derive(Debug)]
     struct ExecutionOutcomeWithIdView {
         MerklePathItem[] proof;
         bytes32 blockHash;
         bytes32 id;
     }
 
-    #[derive(Debug)]
     struct MerklePathItem {
         bytes32 hash;
         Direction direction;
     }
 
-    #[derive(Debug)]
     enum Direction {
         Left,
         Right,
     }
 
-    #[derive(Debug)]
     struct LightClientBlockLiteView {
         bytes32 prevBlockHash;
         bytes32 innerRestHash;
         BlockHeaderInnerLiteView innerLite;
     }
 
-    #[derive(Debug)]
     struct BlockHeaderInnerLiteView {
         uint64 height;
         bytes32 epochId;
@@ -95,11 +100,11 @@ impl TryFrom<NearExecutionOutcomeWithIdView> for ExecutionOutcomeWithIdView {
     }
 }
 
-impl TryFrom<RpcLightClientExecutionProofResponse> for BlobInclusionProof {
+impl TryFrom<RpcLightClientExecutionProofResponse> for ExecutionProofResponse {
     type Error = anyhow::Error;
 
     fn try_from(value: RpcLightClientExecutionProofResponse) -> Result<Self, Self::Error> {
-        Ok(BlobInclusionProof {
+        Ok(ExecutionProofResponse {
             outcomeProof: value.outcome_proof.try_into()?,
             outcomeRootProof: value
                 .outcome_root_proof

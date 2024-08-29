@@ -3,7 +3,7 @@ syntax = "proto3";
 package zksync.config.near;
 
 message Near {
-  optional string light_client_url = 1;
+  optional string evm_provider_url = 1;
   optional string network = 2;
   optional string contract = 3;
   optional string bridge_contract = 4;

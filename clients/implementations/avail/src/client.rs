@@ -1,4 +1,3 @@
-use da_config::avail::AvailConfig;
 use alloy::{
     primitives::{B256, U256},
     sol,
@@ -9,6 +8,8 @@ use avail_subxt::{
     api::{self},
     AvailClient as AvailSubxtClient,
 };
+use da_config::avail::AvailConfig;
+use da_utils::{errors::to_non_retriable_da_error, proto_config_parser::try_parse_proto_config};
 use serde::Deserialize;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
@@ -18,7 +19,6 @@ use zksync_da_client::{
     DataAvailabilityClient,
 };
 use zksync_env_config::FromEnv;
-use da_utils::proto_config_parser::try_parse_proto_config;
 
 use anyhow::{anyhow, Result};
 use avail_subxt::{
@@ -98,13 +98,6 @@ impl AvailClient {
     }
 }
 
-pub fn to_non_retriable_da_error(error: impl Into<anyhow::Error>) -> types::DAError {
-    DAError {
-        error: error.into(),
-        is_retriable: false,
-    }
-}
-
 #[async_trait]
 impl DataAvailabilityClient for AvailClient {
     async fn dispatch_blob(
@@ -121,8 +114,8 @@ impl DataAvailabilityClient for AvailClient {
             &self.keypair,
             AppId(self.config.app_id),
         )
-            .await
-            .map_err(to_non_retriable_da_error)?;
+        .await
+        .map_err(to_non_retriable_da_error)?;
         let block_hash = tx::then_in_block(tx_progress)
             .await
             .map_err(to_non_retriable_da_error)?

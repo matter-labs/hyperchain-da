@@ -1,7 +1,11 @@
-use alloy::{primitives::Address, providers::ProviderBuilder, sol, sol_types::SolValue};
+use alloy::{
+    primitives::Address,
+    providers::{network::Ethereum, RootProvider},
+    sol_types::SolValue,
+    transports::http::Http,
+};
 use anyhow::anyhow;
 use async_trait::async_trait;
-use serde::Deserialize;
 use std::{fmt::Debug, ops::Deref, sync::Arc};
 
 use near_da_primitives::{Blob, Mode};
@@ -10,9 +14,24 @@ use near_da_rpc::{
         config::{Config, KeyType, Network},
         Client,
     },
-    CryptoHash, DataAvailability,
+    DataAvailability,
 };
-use near_jsonrpc_client::methods::light_client_proof::RpcLightClientExecutionProofResponse;
+use near_jsonrpc_client::{
+    methods::{
+        block::RpcBlockRequest,
+        light_client_proof::{
+            RpcLightClientExecutionProofRequest, RpcLightClientExecutionProofResponse,
+        },
+    },
+    JsonRpcClient,
+};
+use near_primitives::{
+    block_header::BlockHeader,
+    hash::CryptoHash,
+    merkle::compute_root_from_path,
+    types::{AccountId, TransactionOrReceiptId},
+    views::LightClientBlockLiteView,
+};
 
 use zksync_da_client::{
     types::{self, DAError},
@@ -20,15 +39,112 @@ use zksync_da_client::{
 };
 use zksync_env_config::FromEnv;
 
-use crate::evm_types::BlobInclusionProof;
+use crate::evm_types::{BlobInclusionProof, NearX::NearXInstance};
 
 use da_config::near::NearConfig;
-use da_utils::proto_config_parser::try_parse_proto_config;
+use da_utils::{errors::to_non_retriable_da_error, proto_config_parser::try_parse_proto_config};
+
+type Provider = RootProvider<Http<reqwest::Client>, Ethereum>;
 
 #[derive(Clone)]
 pub struct NearClient {
     pub config: NearConfig,
     pub da_rpc_client: Arc<Client>,
+    pub light_client: Arc<JsonRpcClient>,
+}
+
+#[async_trait]
+trait LightClient {
+    async fn latest_header(&self) -> Result<CryptoHash, types::DAError>;
+    async fn get_header(
+        &self,
+        latest_header: CryptoHash,
+    ) -> Result<LightClientBlockLiteView, types::DAError>;
+    async fn get_proof(
+        &self,
+        transaction_hash: &str,
+        latest_header: CryptoHash,
+    ) -> Result<RpcLightClientExecutionProofResponse, types::DAError>;
+}
+
+#[async_trait]
+impl LightClient for NearClient {
+    async fn latest_header(&self) -> Result<CryptoHash, types::DAError> {
+        let url = reqwest::Url::parse(&self.config.evm_provider_url)
+            .map_err(to_non_retriable_da_error)?;
+        let inner = Provider::new_http(url);
+        let bridge_address = self
+            .config
+            .bridge_contract
+            .parse::<Address>()
+            .map_err(to_non_retriable_da_error)?;
+        let bridge: NearXInstance<Http<reqwest::Client>, Provider, Ethereum> =
+            NearXInstance::new(bridge_address, inner);
+        let latest_header: CryptoHash = bridge
+            .latestHeader()
+            .call()
+            .await
+            .map(|x| *x._0)
+            .map(CryptoHash)
+            .map_err(|e| DAError {
+                error: anyhow!(e),
+                is_retriable: true,
+            })?;
+
+        Ok(latest_header)
+    }
+
+    async fn get_header(
+        &self,
+        latest_header: CryptoHash,
+    ) -> Result<LightClientBlockLiteView, types::DAError> {
+        let req = RpcBlockRequest {
+            block_reference: near_primitives::types::BlockReference::BlockId(
+                near_primitives::types::BlockId::Hash(latest_header),
+            ),
+        };
+
+        let block_light_view: LightClientBlockLiteView = self
+            .light_client
+            .call(req)
+            .await
+            .map_err(|e| DAError {
+                error: anyhow!(e),
+                is_retriable: true,
+            })
+            .map(|x| x.header)
+            .map(BlockHeader::from)
+            .map(Into::into)?;
+
+        Ok(block_light_view)
+    }
+
+    async fn get_proof(
+        &self,
+        transaction_hash: &str,
+        latest_header: CryptoHash,
+    ) -> Result<RpcLightClientExecutionProofResponse, types::DAError> {
+        let req = RpcLightClientExecutionProofRequest {
+            id: TransactionOrReceiptId::Transaction {
+                transaction_hash: transaction_hash
+                    .parse::<CryptoHash>()
+                    .map_err(|e| to_non_retriable_da_error(anyhow!(e)))?,
+                sender_id: self
+                    .config
+                    .account_id
+                    .parse::<AccountId>()
+                    .map_err(to_non_retriable_da_error)?,
+            },
+            light_client_head: latest_header,
+        };
+
+        let proof = self.light_client.call(req).await.map_err(|e| DAError {
+            error: anyhow!(e),
+            is_retriable: true,
+        })?;
+
+        Ok(proof)
+    }
 }
 
 impl Debug for NearClient {
@@ -50,25 +166,55 @@ impl NearClient {
 
         let client_config = Config {
             key: KeyType::SecretKey(config.account_id.clone(), config.secret_key.clone()),
-            network: Network::try_from(config.network.as_str()).unwrap(),
+            network: Network::try_from(config.network.as_str())
+                .map_err(|e| to_non_retriable_da_error(anyhow!(e)))?,
             contract: config.contract.clone(),
             mode: Mode::default(),
             namespace: None,
         };
 
         let da_rpc_client = Client::new(&client_config);
+        let light_client = Arc::new(JsonRpcClient::connect(da_rpc_client.client.server_addr()));
 
         Ok(Self {
             config,
             da_rpc_client: da_rpc_client.into(),
+            light_client,
         })
     }
-}
 
-#[derive(Deserialize)]
-struct ProofResponse {
-    head_block_root: CryptoHash,
-    proof: RpcLightClientExecutionProofResponse,
+    fn verify_proof(
+        &self,
+        head_block_root: CryptoHash,
+        proof: &RpcLightClientExecutionProofResponse,
+    ) -> Result<(), DAError> {
+        let expected_outcome_root = proof.block_header_lite.inner_lite.outcome_root;
+
+        let outcome_hash = CryptoHash::hash_borsh(proof.outcome_proof.to_hashes());
+        let outcome_root = compute_root_from_path(&proof.outcome_proof.proof, outcome_hash);
+        let leaf = CryptoHash::hash_borsh(outcome_root);
+        let outcome_root = compute_root_from_path(&proof.outcome_root_proof, leaf);
+
+        if expected_outcome_root != outcome_root {
+            return Err(DAError {
+                error: anyhow!("Calculated outcome_root does not match proof.block_header_lite.inner_lite.outcome_root"),
+                is_retriable: false,
+            });
+        }
+
+        // Verify proof block root matches the light client head block root
+        let block_hash = proof.block_header_lite.hash();
+        let block_root = compute_root_from_path(&proof.block_proof, block_hash);
+
+        if head_block_root != block_root {
+            return Err(DAError {
+                error: anyhow!("Calculated block_merkle_root does not match head_block_root"),
+                is_retriable: false,
+            });
+        }
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -78,10 +224,17 @@ impl DataAvailabilityClient for NearClient {
         _batch_number: u32,
         data: Vec<u8>,
     ) -> Result<types::DispatchResponse, types::DAError> {
-        let result = self.da_rpc_client.submit(Blob::new(data)).await.unwrap();
+        let result = self
+            .da_rpc_client
+            .submit(Blob::new(data))
+            .await
+            .map_err(|e| DAError {
+                error: anyhow!(e),
+                is_retriable: true,
+            })?;
 
         Ok(types::DispatchResponse {
-            blob_id: bs58::encode(result.0.deref()).into_string(),
+            blob_id: CryptoHash(*result.0.deref()).to_string(),
         })
     }
 
@@ -90,46 +243,28 @@ impl DataAvailabilityClient for NearClient {
         blob_id: &str,
     ) -> Result<Option<types::InclusionData>, types::DAError> {
         // Call bridge_contract `latestHeader` method to get the latest block hash
+        let latest_header = self.latest_header().await?;
 
-        let provider = ProviderBuilder::new()
-            .on_http(reqwest::Url::parse("https://gateway.tenderly.co/public/sepolia").unwrap());
-        let bridge_address = self.config.bridge_contract.parse::<Address>().unwrap();
-        let bridge = INearX::new(bridge_address, provider);
-        let latest_header = bridge.latestHeader().call().await.unwrap()._0;
+        let latest_header_view = self.get_header(latest_header).await?;
 
-        // Obtain the inclusion data for the blob_id from the near light client using the POST /proof(blob_id) endpoint with reqwest
+        let latest_header_hash = latest_header_view.hash();
 
-        let url = format!("{}/proof", self.config.light_client_url);
-
-        let api_client = reqwest::Client::new();
-
-        let response = api_client
-            .post(&url)
-            .header(reqwest::header::CONTENT_TYPE, "application/json")
-            .body(
-                serde_json::to_string(&serde_json::json!({
-                    "type": "transaction",
-                    "transaction_hash": blob_id,
-                    "sender_id": &self.config.account_id,
-                }))
-                .unwrap(),
-            )
-            .send()
-            .await
-            .unwrap();
-
-        let proof_response: ProofResponse = response.json().await.unwrap();
-
-        let block_hash = proof_response.proof.block_header_lite.hash();
-
-        if block_hash.as_bytes() != latest_header.as_slice() {
+        if latest_header_hash != latest_header {
             return Err(DAError {
-                error: anyhow!("Latest header does not match inclusion proof block header"),
-                is_retriable: true,
+                error: anyhow!("Light client header mismatch"),
+                is_retriable: false,
             });
         }
 
-        let attestation_data: BlobInclusionProof = proof_response.proof.try_into().unwrap();
+        let proof = self.get_proof(blob_id, latest_header).await?;
+        let head_block_root = latest_header_view.inner_lite.block_merkle_root;
+
+        self.verify_proof(head_block_root, &proof)?;
+
+        let attestation_data = BlobInclusionProof {
+            proof: proof.try_into().map_err(to_non_retriable_da_error)?,
+            headMerkleRoot: head_block_root.0.into(),
+        };
 
         Ok(Some(types::InclusionData {
             data: attestation_data.abi_encode(),
@@ -142,12 +277,5 @@ impl DataAvailabilityClient for NearClient {
 
     fn blob_size_limit(&self) -> std::option::Option<usize> {
         Some(1973786)
-    }
-}
-
-sol! {
-    #[sol(rpc)]
-    interface INearX {
-        function latestHeader() external view returns (bytes32);
     }
 }

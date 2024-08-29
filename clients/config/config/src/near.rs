@@ -4,7 +4,7 @@ use zksync_env_config::{envy_load, FromEnv};
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct NearConfig {
-    pub light_client_url: String,
+    pub evm_provider_url: String,
     pub network: String,
     pub contract: String,
     pub bridge_contract: String,
@@ -27,7 +27,7 @@ mod tests {
     static MUTEX: EnvMutex = EnvMutex::new();
 
     fn expected_near_da_layer_config(
-        light_client_url: &str,
+        evm_provider_url: &str,
         network: &str,
         contract: &str,
         bridge_contract: &str,
@@ -35,7 +35,7 @@ mod tests {
         secret_key: &str,
     ) -> NearConfig {
         NearConfig {
-            light_client_url: light_client_url.to_string(),
+            evm_provider_url: evm_provider_url.to_string(),
             network: network.to_string(),
             contract: contract.to_string(),
             bridge_contract: bridge_contract.to_string(),
@@ -48,7 +48,7 @@ mod tests {
     fn from_env_near_client() {
         let mut lock = MUTEX.lock();
         let config = r#"
-            NEAR_CLIENT_LIGHT_CLIENT_URL="localhost:12345"
+            NEAR_CLIENT_evm_provider_url="localhost:12345"
             NEAR_CLIENT_NETWORK="mainnet"
             NEAR_CLIENT_CONTRACT="blob-store.testnet"
             NEAR_CLIENT_BRIDGE_CONTRACT="0x0000000000000000000000000000000000000001"

@@ -10,8 +10,8 @@ impl ProtoRepr for proto::NearConfig {
     fn read(&self) -> anyhow::Result<Self::Type> {
         let near = self.near.clone().context("near")?;
         Ok(Self::Type {
-            light_client_url: required(&near.light_client_url)
-                .context("light_client_url")?
+            evm_provider_url: required(&near.evm_provider_url)
+                .context("evm_provider_url")?
                 .clone(),
             network: required(&near.network).context("network")?.clone(),
             contract: required(&near.contract).context("contract")?.clone(),
@@ -26,7 +26,7 @@ impl ProtoRepr for proto::NearConfig {
     fn build(this: &Self::Type) -> Self {
         Self {
             near: Some(proto::Near {
-                light_client_url: Some(this.light_client_url.clone()),
+                evm_provider_url: Some(this.evm_provider_url.clone()),
                 network: Some(this.network.clone()),
                 contract: Some(this.contract.clone()),
                 bridge_contract: Some(this.bridge_contract.clone()),
