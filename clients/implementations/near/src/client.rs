@@ -1,11 +1,11 @@
 use alloy::{
     primitives::Address,
     providers::{network::Ethereum, RootProvider},
-    sol_types::SolValue,
     transports::http::Http,
 };
 use anyhow::anyhow;
 use async_trait::async_trait;
+use borsh::to_vec;
 use std::{fmt::Debug, ops::Deref, sync::Arc};
 
 use near_da_primitives::{Blob, Mode};
@@ -39,7 +39,7 @@ use zksync_da_client::{
 };
 use zksync_env_config::FromEnv;
 
-use crate::evm_types::{BlobInclusionProof, NearX::NearXInstance};
+use crate::near_types::{BlobInclusionProof, NearX::NearXInstance};
 
 use da_config::near::NearConfig;
 use da_utils::{errors::to_non_retriable_da_error, proto_config_parser::try_parse_proto_config};
@@ -205,7 +205,6 @@ impl NearClient {
         // Verify proof block root matches the light client head block root
         let block_hash = proof.block_header_lite.hash();
         let block_root = compute_root_from_path(&proof.block_proof, block_hash);
-
         if head_block_root != block_root {
             return Err(DAError {
                 error: anyhow!("Calculated block_merkle_root does not match head_block_root"),
@@ -244,9 +243,7 @@ impl DataAvailabilityClient for NearClient {
     ) -> Result<Option<types::InclusionData>, types::DAError> {
         // Call bridge_contract `latestHeader` method to get the latest block hash
         let latest_header = self.latest_header().await?;
-
         let latest_header_view = self.get_header(latest_header).await?;
-
         let latest_header_hash = latest_header_view.hash();
 
         if latest_header_hash != latest_header {
@@ -262,12 +259,15 @@ impl DataAvailabilityClient for NearClient {
         self.verify_proof(head_block_root, &proof)?;
 
         let attestation_data = BlobInclusionProof {
-            proof: proof.try_into().map_err(to_non_retriable_da_error)?,
-            headMerkleRoot: head_block_root.0.into(),
+            outcome_proof: proof.outcome_proof.try_into().map_err(to_non_retriable_da_error)?,
+            outcome_root_proof: proof.outcome_root_proof,
+            block_header_lite: proof.block_header_lite.try_into().map_err(to_non_retriable_da_error)?,
+            block_proof: proof.block_proof,
+            head_merkle_root: head_block_root.0,
         };
 
         Ok(Some(types::InclusionData {
-            data: attestation_data.abi_encode(),
+            data: to_vec(&attestation_data).map_err(to_non_retriable_da_error)?,
         }))
     }
 
