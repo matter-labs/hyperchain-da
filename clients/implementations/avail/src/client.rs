@@ -1,7 +1,6 @@
 use da_config::avail::AvailConfig;
 use alloy::{
-    primitives::{B256, U256},
-    sol,
+    hex::ToHexExt, primitives::{B256, U256}, sol
 };
 use async_trait::async_trait;
 use avail_core::AppId;
@@ -10,7 +9,7 @@ use avail_subxt::{
     AvailClient as AvailSubxtClient,
 };
 use serde::Deserialize;
-use std::fmt::{Debug, Formatter};
+use std::{borrow::Borrow, fmt::{Debug, Formatter}};
 use std::sync::Arc;
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
 use zksync_da_client::{
@@ -28,6 +27,7 @@ use avail_subxt::{
     },
     tx,
 };
+use alloy::sol_types::SolValue;
 
 #[derive(Clone)]
 pub struct AvailClient {
@@ -37,19 +37,22 @@ pub struct AvailClient {
     keypair: Keypair,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct BridgeAPIResponse {
-    blob_root: B256,
-    bridge_root: B256,
-    data_root_index: U256,
-    data_root_proof: Vec<B256>,
-    leaf: B256,
-    leaf_index: U256,
-    leaf_proof: Vec<B256>,
-    range_hash: B256,
+    blob_root: Option<B256>,
+    bridge_root: Option<B256>,
+    data_root_index: Option<U256>,
+    data_root_proof: Option<Vec<B256>>,
+    leaf: Option<B256>,
+    leaf_index: Option<U256>,
+    leaf_proof: Option<Vec<B256>>,
+    range_hash: Option<B256>,
+    error: Option<String>,
 }
 
 sol! {
+    #[derive(Debug)]
     struct MerkleProofInput {
         // proof of inclusion for the data root
         bytes32[] dataRootProof;
@@ -105,6 +108,13 @@ pub fn to_non_retriable_da_error(error: impl Into<anyhow::Error>) -> types::DAEr
     }
 }
 
+pub fn to_retriable_da_error(error: impl Into<anyhow::Error>) -> types::DAError {
+    DAError {
+        error: error.into(),
+        is_retriable: true,
+    }
+}
+
 #[async_trait]
 impl DataAvailabilityClient for AvailClient {
     async fn dispatch_blob(
@@ -112,20 +122,23 @@ impl DataAvailabilityClient for AvailClient {
         _batch_number: u32,
         data: Vec<u8>,
     ) -> Result<DispatchResponse, DAError> {
+        let client = AvailSubxtClient::new(self.config.api_node_url.clone())
+            .await
+            .map_err(to_retriable_da_error)?;
         let call = api::tx()
             .data_availability()
             .submit_data(BoundedVec(data.clone()));
         let tx_progress = tx::send(
-            &self.client,
+            &client,
             &call,
             &self.keypair,
             AppId(self.config.app_id),
         )
             .await
-            .map_err(to_non_retriable_da_error)?;
-        let block_hash = tx::then_in_block(tx_progress)
+            .map_err(to_retriable_da_error)?;
+        let block_hash = tx::then_in_finalized_block(tx_progress)
             .await
-            .map_err(to_non_retriable_da_error)?
+            .map_err(to_retriable_da_error)?
             .block_hash();
 
         // Retrieve the data from the block hash
@@ -160,65 +173,79 @@ impl DataAvailabilityClient for AvailClient {
             )));
         }
 
+        eprintln!("block_hash: {:x}", block_hash);
+        eprintln!("block_hash 2: {}", block_hash.encode_hex_with_prefix());
         Ok(DispatchResponse {
-            blob_id: format!("{}:{}", block_hash, tx_idx),
+            blob_id: format!("{:x}:{:x}", block_hash, tx_idx),
         })
     }
 
     async fn get_inclusion_data(
         &self,
-        _blob_id: &str,
+        blob_id: &str,
     ) -> Result<Option<types::InclusionData>, types::DAError> {
-        // let (block_hash, tx_idx) = blob_id.split_once(':').ok_or_else(|| DAError {
-        //     error: anyhow!("Invalid blob ID format"),
-        //     is_retriable: false,
-        // })?;
-        // let url = format!(
-        //     "{}/eth/proof/{}?index={}",
-        //     self.config.bridge_api_url, block_hash, tx_idx
-        // );
-        // let mut response: Response;
-        // let mut retries = 0usize;
-        // loop {
-        //     response = self
-        //         .api_client
-        //         .get(&url)
-        //         .send()
-        //         .await
-        //         .map_err(|e| self.to_non_retriable_da_error(e))?;
-        //     if response.status().is_success() {
-        //         break;
-        //     }
-        //     sleep(Duration::from_secs(
-        //         u64::try_from(self.config.timeout).unwrap(),
-        //     ))
-        //     .await;
-        //     retries += 1;
-        //     if retries > self.config.max_retries {
-        //         return Err(DAError {
-        //             error: anyhow!("Failed to get inclusion data"),
-        //             is_retriable: true,
-        //         });
-        //     }
-        // }
-        // let bridge_api_data: BridgeAPIResponse = response
-        //     .json()
-        //     .await
-        //     .map_err(|e| self.to_non_retriable_da_error(e))?;
-        // let attestation_data: MerkleProofInput = MerkleProofInput {
-        //     dataRootProof: bridge_api_data.data_root_proof,
-        //     leafProof: bridge_api_data.leaf_proof,
-        //     rangeHash: bridge_api_data.range_hash,
-        //     dataRootIndex: bridge_api_data.data_root_index,
-        //     blobRoot: bridge_api_data.blob_root,
-        //     bridgeRoot: bridge_api_data.bridge_root,
-        //     leaf: bridge_api_data.leaf,
-        //     leafIndex: bridge_api_data.leaf_index,
-        // };
-        // Ok(Some(InclusionData {
-        //     data: attestation_data.abi_encode(),
-        // }))
-        Ok(Some(InclusionData { data: vec![] }))
+        let (block_hash, tx_idx) = blob_id.split_once(':').ok_or_else(|| DAError {
+            error: anyhow!("Invalid blob ID format"),
+            is_retriable: false,
+        })?;
+        eprintln!("block_hash: {}", block_hash);
+        eprintln!("tx_idx: {}", tx_idx);
+        let url = format!(
+            "{}/eth/proof/{}?index={}",
+            self.config.bridge_api_url, block_hash, tx_idx
+        );
+        let mut response: reqwest::Response;
+        let mut retries = self.config.max_retries;
+        let mut response_text: String;
+        let mut bridge_api_data: BridgeAPIResponse;
+        loop {
+            response = self
+                .api_client
+                .get(&url)
+                .send()
+                .await
+                .map_err(to_retriable_da_error)?;
+            response_text = response.text().await.unwrap();
+            println!("response: {:?}", response_text);
+            match serde_json::from_str::<BridgeAPIResponse>(&response_text) {
+                Ok(data) => {
+                    println!("data: {:?}", data);
+                    bridge_api_data = data;
+                    if bridge_api_data.error.is_none() {
+                        break;
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error parsing response: {:#?}, url: {:#?}, block_hash: {:#?}, tx_idx: {:#?}", e, url, block_hash, tx_idx);
+                }
+            }
+
+            tokio::time::sleep(tokio::time::Duration::from_secs(
+                u64::try_from(480).unwrap(),
+            ))
+            .await;
+            retries += 1;
+            if retries > self.config.max_retries {
+                return Err(DAError {
+                    error: anyhow!("Failed to get inclusion data"),
+                    is_retriable: true,
+                });
+            }
+        }
+        let attestation_data: MerkleProofInput = MerkleProofInput {
+            dataRootProof: bridge_api_data.data_root_proof.unwrap(),
+            leafProof: bridge_api_data.leaf_proof.unwrap(),
+            rangeHash: bridge_api_data.range_hash.unwrap(),
+            dataRootIndex: bridge_api_data.data_root_index.unwrap(),
+            blobRoot: bridge_api_data.blob_root.unwrap(),
+            bridgeRoot: bridge_api_data.bridge_root.unwrap(),
+            leaf: bridge_api_data.leaf.unwrap(),
+            leafIndex: bridge_api_data.leaf_index.unwrap(),
+        };
+        eprintln!("attestation_data: {:?}", attestation_data);
+        Ok(Some(InclusionData {
+            data: attestation_data.abi_encode(),
+        }))
     }
 
     fn clone_boxed(&self) -> Box<dyn DataAvailabilityClient> {
