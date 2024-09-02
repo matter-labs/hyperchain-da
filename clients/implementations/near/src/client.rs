@@ -241,7 +241,7 @@ impl DataAvailabilityClient for NearClient {
         &self,
         blob_id: &str,
     ) -> Result<Option<types::InclusionData>, types::DAError> {
-        // Call bridge_contract `latestHeader` method to get the latest block hash
+        // Call bridge_contract `latestHeader` method to get the latest ZK-verified block header hash
         let latest_header = self.latest_header().await?;
         let latest_header_view = self.get_header(latest_header).await?;
         let latest_header_hash = latest_header_view.hash();
@@ -282,6 +282,6 @@ impl DataAvailabilityClient for NearClient {
     }
 
     fn blob_size_limit(&self) -> std::option::Option<usize> {
-        Some(1973786)
+        Some(1572864)
     }
 }
