@@ -32,6 +32,4 @@ near-primitives = "0.25.0"
 alloy = { version = "0.2.1", features = ["full"] }
 bs58 = "0.5.1"
 borsh = "1.5.1"
-dotenvy = "0.15.7"
 reqwest = "0.12"
-futures = "0.3.30"

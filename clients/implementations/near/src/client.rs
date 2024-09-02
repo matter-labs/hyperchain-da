@@ -39,7 +39,7 @@ use zksync_da_client::{
 };
 use zksync_env_config::FromEnv;
 
-use crate::near_types::{BlobInclusionProof, NearX::NearXInstance};
+use crate::types::{BlobInclusionProof, NearX::NearXInstance};
 
 use da_config::near::NearConfig;
 use da_utils::{errors::to_non_retriable_da_error, proto_config_parser::try_parse_proto_config};
@@ -259,9 +259,15 @@ impl DataAvailabilityClient for NearClient {
         self.verify_proof(head_block_root, &proof)?;
 
         let attestation_data = BlobInclusionProof {
-            outcome_proof: proof.outcome_proof.try_into().map_err(to_non_retriable_da_error)?,
+            outcome_proof: proof
+                .outcome_proof
+                .try_into()
+                .map_err(to_non_retriable_da_error)?,
             outcome_root_proof: proof.outcome_root_proof,
-            block_header_lite: proof.block_header_lite.try_into().map_err(to_non_retriable_da_error)?,
+            block_header_lite: proof
+                .block_header_lite
+                .try_into()
+                .map_err(to_non_retriable_da_error)?,
             block_proof: proof.block_proof,
             head_merkle_root: head_block_root.0,
         };
