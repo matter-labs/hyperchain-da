@@ -1,7 +1,6 @@
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 
-use alloy_sol_types::SolValue;
 use async_trait::async_trait;
 use celestia_types::nmt::NamespacedHashExt;
 use crate::clients::celestia::config::CelestiaConfig;
