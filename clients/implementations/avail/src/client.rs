@@ -20,7 +20,7 @@ use avail_subxt::{
 use bytes::Bytes;
 use da_config::avail::AvailConfig;
 use da_utils::proto_config_parser::try_parse_proto_config;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
@@ -37,7 +37,7 @@ pub struct AvailClient {
     keypair: Option<Keypair>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BridgeAPIResponse {
     blob_root: Option<B256>,
@@ -51,24 +51,24 @@ pub struct BridgeAPIResponse {
     error: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct GasRelayAPISubmissionResponse {
     submission_id: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct GasRelayAPIStatusResponse {
     submission: GasRelayAPISubmission,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct GasRelayAPISubmission {
     block_hash: Option<B256>,
     extrinsic_index: Option<u64>,
 }
 
 sol! {
-    #[derive(Debug)]
+    #[derive(Deserialize, Serialize, Debug)]
     struct MerkleProofInput {
         // proof of inclusion for the data root
         bytes32[] dataRootProof;
