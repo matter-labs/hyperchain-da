@@ -37,9 +37,13 @@ impl Drop for EnvMutexGuard<'_> {
     fn drop(&mut self) {
         for (env_name, value) in mem::take(&mut self.redefined_vars) {
             if let Some(value) = value {
-                unsafe { env::set_var(env_name, value); }
+                unsafe {
+                    env::set_var(env_name, value);
+                }
             } else {
-                unsafe { env::remove_var(env_name); }
+                unsafe {
+                    env::remove_var(env_name);
+                }
             }
         }
     }
