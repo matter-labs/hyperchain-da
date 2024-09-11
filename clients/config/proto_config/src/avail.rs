@@ -34,7 +34,10 @@ impl ProtoRepr for proto::AvailConfig {
             },
             timeout: *required(&avail.timeout).context("timeout")? as usize,
             max_retries: *required(&avail.max_retries).context("max_retries")? as usize,
-            gas_relay_mode: *required(&avail.gas_relay_mode).context("gas_relay_mode")? as bool,
+            gas_relay_mode: avail
+                .gas_relay_mode
+                .context("gas_relay_mode")
+                .unwrap_or(false),
             // if gas_relay_mode is true, then we need to set the gas_relay_api_url and gas_relay_api_key
             gas_relay_api_url: if avail.gas_relay_mode.unwrap_or(false) {
                 Some(
