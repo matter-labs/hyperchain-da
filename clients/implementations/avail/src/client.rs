@@ -9,6 +9,7 @@ use avail_subxt::{
     AvailClient as AvailSubxtClient,
 };
 use serde::Deserialize;
+use serde_json::Map;
 use std::{borrow::Borrow, fmt::{Debug, Formatter}};
 use std::sync::Arc;
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
@@ -18,6 +19,7 @@ use zksync_da_client::{
 };
 use zksync_env_config::FromEnv;
 use da_utils::proto_config_parser::try_parse_proto_config;
+use bytes::Bytes;
 
 use anyhow::{anyhow, Result};
 use avail_subxt::{
@@ -32,9 +34,9 @@ use alloy::sol_types::SolValue;
 #[derive(Clone)]
 pub struct AvailClient {
     config: AvailConfig,
-    client: Arc<AvailSubxtClient>,
+    client: Option<Arc<AvailSubxtClient>>,
     api_client: Arc<reqwest::Client>,
-    keypair: Keypair,
+    keypair: Option<Keypair>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -49,6 +51,22 @@ pub struct BridgeAPIResponse {
     leaf_proof: Option<Vec<B256>>,
     range_hash: Option<B256>,
     error: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GasRelayAPISubmissionResponse {
+    submission_id: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GasRelayAPIStatusResponse {
+    submission: GasRelayAPISubmission
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GasRelayAPISubmission {
+    block_hash: Option<B256>,
+    extrinsic_index: Option<u64>,
 }
 
 sol! {
@@ -82,21 +100,31 @@ impl AvailClient {
             None => AvailConfig::from_env()?,
         };
 
-        let client = AvailSubxtClient::new(config.api_node_url.clone())
+        if config.gas_relay_mode {
+            return Ok(Self {
+                config,
+                client: None,
+                api_client: reqwest::Client::new().into(),
+                keypair: None,
+            });
+        }
+
+        // these unwraps are safe because we validate in config
+        let client = AvailSubxtClient::new(config.api_node_url.clone().unwrap())
             .await
             .map_err(to_non_retriable_da_error)?;
 
-        let mnemonic = Mnemonic::parse(&config.seed).map_err(to_non_retriable_da_error)?;
+        let mnemonic = Mnemonic::parse(&config.seed.clone().unwrap()).map_err(to_non_retriable_da_error)?;
 
         let keypair = Keypair::from_phrase(&mnemonic, None).map_err(to_non_retriable_da_error)?;
 
         let api_client = reqwest::Client::new();
 
         Ok(Self {
-            config,
-            client: client.into(),
+            config: config.into(),
+            client: Some(Arc::new(client)),
             api_client: api_client.into(),
-            keypair,
+            keypair: keypair.into(),
         })
     }
 }
@@ -122,7 +150,64 @@ impl DataAvailabilityClient for AvailClient {
         _batch_number: u32,
         data: Vec<u8>,
     ) -> Result<DispatchResponse, DAError> {
-        let client = AvailSubxtClient::new(self.config.api_node_url.clone())
+        if self.config.gas_relay_mode {
+            let submit_url = format!(
+                "{}/user/submit_raw_data?token=ethereum",
+                self.config.gas_relay_api_url.clone().unwrap()
+            );
+            // send the data to the gas relay
+            let submit_response = self
+                .api_client
+                .post(&submit_url)
+                .body(Bytes::from(data))
+                .header("Content-Type", "text/plain")
+                .header("Authorization", self.config.gas_relay_api_key.clone().unwrap())
+                .send()
+                .await
+                .map_err(to_retriable_da_error)?;
+            let submit_response_text = submit_response.text().await.map_err(to_retriable_da_error)?;
+            //let submit_response_struct: GasRelayAPISubmissionResponse = serde_json::from_str(&submit_response.text().await.map_err(to_retriable_da_error)?).map_err(to_retriable_da_error)?;
+            let submit_response_struct: GasRelayAPISubmissionResponse = serde_json::from_str(&submit_response_text.clone()).map_err(to_retriable_da_error)?;
+            let status_url = format!(
+                "{}/user/get_submission_info?submission_id={}",
+                self.config.gas_relay_api_url.clone().unwrap(),
+                submit_response_struct.submission_id
+            );
+            let mut retries = 0;
+            let mut status_response: reqwest::Response;
+            let mut status_response_text: String;
+            let mut status_response_struct: GasRelayAPIStatusResponse;
+            loop {
+                tokio::time::sleep(tokio::time::Duration::from_secs(
+                    u64::try_from(40).unwrap(),
+                ))
+                .await; // usually takes 20s to finalize
+                status_response = self
+                    .api_client
+                    .get(&status_url)
+                    .header("Authorization", self.config.gas_relay_api_key.clone().unwrap())
+                    .send()
+                    .await
+                    .map_err(to_retriable_da_error)?;
+                status_response_text = status_response.text().await.map_err(to_retriable_da_error)?;
+                status_response_struct = serde_json::from_str(&status_response_text).map_err(to_retriable_da_error)?;
+                if status_response_struct.submission.block_hash.is_some() {
+                    break;
+                }
+                retries += 1;
+                if retries > self.config.max_retries {
+                    return Err(to_retriable_da_error(anyhow!("Failed to get gas relay status")));
+                }
+            }
+            return Ok(DispatchResponse {
+                blob_id: format!(
+                    "{:x}:{}",
+                    status_response_struct.submission.block_hash.unwrap(),
+                    status_response_struct.submission.extrinsic_index.unwrap()
+                ),
+            });
+        }
+        let client = AvailSubxtClient::new(self.config.api_node_url.clone().unwrap())
             .await
             .map_err(to_retriable_da_error)?;
         let call = api::tx()
@@ -131,8 +216,8 @@ impl DataAvailabilityClient for AvailClient {
         let tx_progress = tx::send(
             &client,
             &call,
-            &self.keypair,
-            AppId(self.config.app_id),
+            &self.keypair.clone().unwrap(),
+            AppId(self.config.app_id.unwrap()),
         )
             .await
             .map_err(to_retriable_da_error)?;
@@ -142,8 +227,7 @@ impl DataAvailabilityClient for AvailClient {
             .block_hash();
 
         // Retrieve the data from the block hash
-        let block = self
-            .client
+        let block = client
             .blocks()
             .at(block_hash)
             .await
@@ -176,7 +260,7 @@ impl DataAvailabilityClient for AvailClient {
         eprintln!("block_hash: {:x}", block_hash);
         eprintln!("block_hash 2: {}", block_hash.encode_hex_with_prefix());
         Ok(DispatchResponse {
-            blob_id: format!("{:x}:{:x}", block_hash, tx_idx),
+            blob_id: format!("{:x}:{}", block_hash, tx_idx),
         })
     }
 

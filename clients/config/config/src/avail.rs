@@ -4,12 +4,15 @@ use zksync_env_config::{envy_load, FromEnv};
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct AvailConfig {
-    pub api_node_url: String,
+    pub api_node_url: Option<String>,
     pub bridge_api_url: String,
-    pub seed: String,
-    pub app_id: u32,
+    pub seed: Option<String>,
+    pub app_id: Option<u32>,
     pub timeout: usize,
     pub max_retries: usize,
+    pub gas_relay_mode: bool,
+    pub gas_relay_api_url: Option<String>,
+    pub gas_relay_api_key: Option<String>,
 }
 
 impl FromEnv for AvailConfig {
@@ -33,14 +36,21 @@ mod tests {
         app_id: u32,
         timeout: usize,
         max_retries: usize,
+        gas_relay_mode: bool,
+        gas_relay_api_url: &str,
+        gas_relay_api_key: &str,
     ) -> AvailConfig {
         AvailConfig {
-            api_node_url: api_node_url.to_string(),
+            // if api_node_url is of length 0, then set it None
+            api_node_url: if api_node_url.len() == 0 { None } else { Some(api_node_url.to_string()) },
             bridge_api_url: bridge_api_url.to_string(),
-            seed: seed.to_string(),
-            app_id,
+            seed: if seed.len() == 0 { None } else { Some(seed.to_string()) },
+            app_id: if app_id == 0 { None } else { Some(app_id) },
             timeout,
             max_retries,
+            gas_relay_mode,
+            gas_relay_api_url: if gas_relay_api_url.len() == 0 { None } else { Some(gas_relay_api_url.to_string()) },
+            gas_relay_api_key: if gas_relay_api_key.len() == 0 { None } else { Some(gas_relay_api_key.to_string()) },
         }
     }
 
@@ -54,6 +64,9 @@ mod tests {
             AVAIL_CLIENT_APP_ID=1
             AVAIL_CLIENT_TIMEOUT=2
             AVAIL_CLIENT_MAX_RETRIES=3
+            AVAIL_CLIENT_GAS_RELAY_MODE=true
+            AVAIL_CLIENT_GAS_RELAY_API_URL="localhost:65432"
+            AVAIL_CLIENT_GAS_RELAY_API_KEY="key"
         "#;
         unsafe { lock.set_env(config); }
         let actual = AvailConfig::from_env().unwrap();
@@ -66,6 +79,9 @@ mod tests {
                 "1".parse::<u32>().unwrap(),
                 "2".parse::<usize>().unwrap(),
                 "3".parse::<usize>().unwrap(),
+                true,
+                "localhost:65432",
+                "key"
             )
         );
     }
