@@ -273,8 +273,6 @@ impl DataAvailabilityClient for AvailClient {
             )));
         }
 
-        eprintln!("block_hash: {:x}", block_hash);
-        eprintln!("block_hash 2: {}", block_hash.encode_hex_with_prefix());
         Ok(DispatchResponse {
             blob_id: format!("{:x}:{}", block_hash, tx_idx),
         })
@@ -288,8 +286,7 @@ impl DataAvailabilityClient for AvailClient {
             error: anyhow!("Invalid blob ID format"),
             is_retriable: false,
         })?;
-        eprintln!("block_hash: {}", block_hash);
-        eprintln!("tx_idx: {}", tx_idx);
+
         let url = format!(
             "{}/eth/proof/{}?index={}",
             self.config.bridge_api_url, block_hash, tx_idx
@@ -306,24 +303,21 @@ impl DataAvailabilityClient for AvailClient {
                 .await
                 .map_err(to_retriable_da_error)?;
             response_text = response.text().await.unwrap();
-            println!("response: {:?}", response_text);
+
             match serde_json::from_str::<BridgeAPIResponse>(&response_text) {
                 Ok(data) => {
-                    println!("data: {:?}", data);
                     bridge_api_data = data;
                     if bridge_api_data.error.is_none() {
                         break;
                     }
-                }
-                Err(e) => {
-                    eprintln!("Error parsing response: {:#?}, url: {:#?}, block_hash: {:#?}, tx_idx: {:#?}", e, url, block_hash, tx_idx);
-                }
+                },
+                _ => {}
             }
 
             tokio::time::sleep(tokio::time::Duration::from_secs(
                 u64::try_from(480).unwrap(),
             ))
-            .await;
+            .await; // usually takes 15 mins on Hex
             retries += 1;
             if retries > self.config.max_retries {
                 return Err(DAError {
@@ -342,7 +336,6 @@ impl DataAvailabilityClient for AvailClient {
             leaf: bridge_api_data.leaf.unwrap(),
             leafIndex: bridge_api_data.leaf_index.unwrap(),
         };
-        eprintln!("attestation_data: {:?}", attestation_data);
         Ok(Some(InclusionData {
             data: attestation_data.abi_encode(),
         }))
