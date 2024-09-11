@@ -13,7 +13,11 @@ impl ProtoRepr for proto::AvailConfig {
             api_node_url: if avail.gas_relay_mode.unwrap_or(false) {
                 None
             } else {
-                Some(avail.api_node_url.context("api_node_url")?.clone())
+                Some(
+                    required(&avail.api_node_url)
+                        .context("api_node_url")?
+                        .clone(),
+                )
             },
             bridge_api_url: required(&avail.bridge_api_url)
                 .context("bridge_api_url")?
@@ -21,12 +25,12 @@ impl ProtoRepr for proto::AvailConfig {
             seed: if avail.gas_relay_mode.unwrap_or(false) {
                 None
             } else {
-                Some(avail.seed.context("seed")?.clone())
+                Some(required(&avail.seed).context("seed")?.clone())
             },
             app_id: if avail.gas_relay_mode.unwrap_or(false) {
                 None
             } else {
-                Some(avail.app_id.context("app_id")?)
+                Some(*required(&avail.app_id).context("app_id")?)
             },
             timeout: *required(&avail.timeout).context("timeout")? as usize,
             max_retries: *required(&avail.max_retries).context("max_retries")? as usize,
@@ -34,8 +38,7 @@ impl ProtoRepr for proto::AvailConfig {
             // if gas_relay_mode is true, then we need to set the gas_relay_api_url and gas_relay_api_key
             gas_relay_api_url: if avail.gas_relay_mode.unwrap_or(false) {
                 Some(
-                    avail
-                        .gas_relay_api_url
+                    required(&avail.gas_relay_api_url)
                         .context("gas_relay_api_url")?
                         .clone(),
                 )
@@ -44,8 +47,7 @@ impl ProtoRepr for proto::AvailConfig {
             },
             gas_relay_api_key: if avail.gas_relay_mode.unwrap_or(false) {
                 Some(
-                    avail
-                        .gas_relay_api_key
+                    required(&avail.gas_relay_api_key)
                         .context("gas_relay_api_key")?
                         .clone(),
                 )
