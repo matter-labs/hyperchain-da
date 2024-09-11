@@ -106,6 +106,7 @@ impl AvailClient {
             });
         }
 
+        // these unwraps are fine because we have already validated the config
         let mnemonic =
             Mnemonic::parse(config.seed.clone().unwrap()).map_err(to_non_retriable_da_error)?;
 
