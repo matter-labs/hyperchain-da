@@ -1,5 +1,4 @@
 use alloy::{
-    hex::ToHexExt,
     primitives::{B256, U256},
     sol,
 };
@@ -13,8 +12,8 @@ use bytes::Bytes;
 use da_config::avail::AvailConfig;
 use da_utils::proto_config_parser::try_parse_proto_config;
 use serde::Deserialize;
-use std::sync::Arc;
 use std::fmt::{Debug, Formatter};
+use std::sync::Arc;
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
 use zksync_da_client::{
     types::{self, DAError, DispatchResponse, InclusionData},
@@ -304,14 +303,11 @@ impl DataAvailabilityClient for AvailClient {
                 .map_err(to_retriable_da_error)?;
             response_text = response.text().await.unwrap();
 
-            match serde_json::from_str::<BridgeAPIResponse>(&response_text) {
-                Ok(data) => {
-                    bridge_api_data = data;
-                    if bridge_api_data.error.is_none() {
-                        break;
-                    }
-                },
-                _ => {}
+            if let Ok(data) = serde_json::from_str::<BridgeAPIResponse>(&response_text) {
+                bridge_api_data = data;
+                if bridge_api_data.error.is_none() {
+                    break;
+                }
             }
 
             tokio::time::sleep(tokio::time::Duration::from_secs(
