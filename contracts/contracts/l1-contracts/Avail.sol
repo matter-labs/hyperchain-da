@@ -23,7 +23,7 @@ contract AvailDAValidator is IL1DAValidator, AvailAttestation {
         uint256 // _maxBlobsSupported
     ) external view returns (L1DAValidatorOutput memory output) {
         output.stateDiffHash = bytes32(_operatorDAInput[:32]);
-        IAvailBridge.MerkleProofInput memory input = abi.decode(_operatorDAInput, (IAvailBridge.MerkleProofInput));
+        IAvailBridge.MerkleProofInput memory input = abi.decode(_operatorDAInput[32:], (IAvailBridge.MerkleProofInput));
         if (input.leaf != l2DAValidatorOutputHash) {
             revert InvalidOperatorDAInput();
         }
