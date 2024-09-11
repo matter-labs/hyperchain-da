@@ -1,12 +1,21 @@
+use alloy::sol_types::SolValue;
 use alloy::{
     primitives::{B256, U256},
     sol,
 };
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use avail_core::AppId;
 use avail_subxt::{
     api::{self},
     AvailClient as AvailSubxtClient,
+};
+use avail_subxt::{
+    api::{
+        data_availability::calls::types::SubmitData,
+        runtime_types::bounded_collections::bounded_vec::BoundedVec,
+    },
+    tx,
 };
 use bytes::Bytes;
 use da_config::avail::AvailConfig;
@@ -20,16 +29,6 @@ use zksync_da_client::{
     DataAvailabilityClient,
 };
 use zksync_env_config::FromEnv;
-
-use alloy::sol_types::SolValue;
-use anyhow::{anyhow, Result};
-use avail_subxt::{
-    api::{
-        data_availability::calls::types::SubmitData,
-        runtime_types::bounded_collections::bounded_vec::BoundedVec,
-    },
-    tx,
-};
 
 #[derive(Clone)]
 pub struct AvailClient {
