@@ -1,6 +1,7 @@
-use da_config::avail::AvailConfig;
 use alloy::{
-    hex::ToHexExt, primitives::{B256, U256}, sol
+    hex::ToHexExt,
+    primitives::{B256, U256},
+    sol,
 };
 use async_trait::async_trait;
 use avail_core::AppId;
@@ -8,19 +9,24 @@ use avail_subxt::{
     api::{self},
     AvailClient as AvailSubxtClient,
 };
+use bytes::Bytes;
+use da_config::avail::AvailConfig;
+use da_utils::proto_config_parser::try_parse_proto_config;
 use serde::Deserialize;
 use serde_json::Map;
-use std::{borrow::Borrow, fmt::{Debug, Formatter}};
 use std::sync::Arc;
+use std::{
+    borrow::Borrow,
+    fmt::{Debug, Formatter},
+};
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
 use zksync_da_client::{
     types::{self, DAError, DispatchResponse, InclusionData},
     DataAvailabilityClient,
 };
 use zksync_env_config::FromEnv;
-use da_utils::proto_config_parser::try_parse_proto_config;
-use bytes::Bytes;
 
+use alloy::sol_types::SolValue;
 use anyhow::{anyhow, Result};
 use avail_subxt::{
     api::{
@@ -29,7 +35,6 @@ use avail_subxt::{
     },
     tx,
 };
-use alloy::sol_types::SolValue;
 
 #[derive(Clone)]
 pub struct AvailClient {
@@ -60,7 +65,7 @@ pub struct GasRelayAPISubmissionResponse {
 
 #[derive(Deserialize, Debug)]
 pub struct GasRelayAPIStatusResponse {
-    submission: GasRelayAPISubmission
+    submission: GasRelayAPISubmission,
 }
 
 #[derive(Deserialize, Debug)]
@@ -114,7 +119,8 @@ impl AvailClient {
             .await
             .map_err(to_non_retriable_da_error)?;
 
-        let mnemonic = Mnemonic::parse(&config.seed.clone().unwrap()).map_err(to_non_retriable_da_error)?;
+        let mnemonic =
+            Mnemonic::parse(&config.seed.clone().unwrap()).map_err(to_non_retriable_da_error)?;
 
         let keypair = Keypair::from_phrase(&mnemonic, None).map_err(to_non_retriable_da_error)?;
 
@@ -161,13 +167,20 @@ impl DataAvailabilityClient for AvailClient {
                 .post(&submit_url)
                 .body(Bytes::from(data))
                 .header("Content-Type", "text/plain")
-                .header("Authorization", self.config.gas_relay_api_key.clone().unwrap())
+                .header(
+                    "Authorization",
+                    self.config.gas_relay_api_key.clone().unwrap(),
+                )
                 .send()
                 .await
                 .map_err(to_retriable_da_error)?;
-            let submit_response_text = submit_response.text().await.map_err(to_retriable_da_error)?;
-            //let submit_response_struct: GasRelayAPISubmissionResponse = serde_json::from_str(&submit_response.text().await.map_err(to_retriable_da_error)?).map_err(to_retriable_da_error)?;
-            let submit_response_struct: GasRelayAPISubmissionResponse = serde_json::from_str(&submit_response_text.clone()).map_err(to_retriable_da_error)?;
+            let submit_response_text = submit_response
+                .text()
+                .await
+                .map_err(to_retriable_da_error)?;
+            let submit_response_struct: GasRelayAPISubmissionResponse =
+                serde_json::from_str(&submit_response_text.clone())
+                    .map_err(to_retriable_da_error)?;
             let status_url = format!(
                 "{}/user/get_submission_info?submission_id={}",
                 self.config.gas_relay_api_url.clone().unwrap(),
@@ -178,25 +191,32 @@ impl DataAvailabilityClient for AvailClient {
             let mut status_response_text: String;
             let mut status_response_struct: GasRelayAPIStatusResponse;
             loop {
-                tokio::time::sleep(tokio::time::Duration::from_secs(
-                    u64::try_from(40).unwrap(),
-                ))
-                .await; // usually takes 20s to finalize
+                tokio::time::sleep(tokio::time::Duration::from_secs(u64::try_from(40).unwrap()))
+                    .await; // usually takes 20s to finalize
                 status_response = self
                     .api_client
                     .get(&status_url)
-                    .header("Authorization", self.config.gas_relay_api_key.clone().unwrap())
+                    .header(
+                        "Authorization",
+                        self.config.gas_relay_api_key.clone().unwrap(),
+                    )
                     .send()
                     .await
                     .map_err(to_retriable_da_error)?;
-                status_response_text = status_response.text().await.map_err(to_retriable_da_error)?;
-                status_response_struct = serde_json::from_str(&status_response_text).map_err(to_retriable_da_error)?;
+                status_response_text = status_response
+                    .text()
+                    .await
+                    .map_err(to_retriable_da_error)?;
+                status_response_struct =
+                    serde_json::from_str(&status_response_text).map_err(to_retriable_da_error)?;
                 if status_response_struct.submission.block_hash.is_some() {
                     break;
                 }
                 retries += 1;
                 if retries > self.config.max_retries {
-                    return Err(to_retriable_da_error(anyhow!("Failed to get gas relay status")));
+                    return Err(to_retriable_da_error(anyhow!(
+                        "Failed to get gas relay status"
+                    )));
                 }
             }
             return Ok(DispatchResponse {
@@ -219,8 +239,8 @@ impl DataAvailabilityClient for AvailClient {
             &self.keypair.clone().unwrap(),
             AppId(self.config.app_id.unwrap()),
         )
-            .await
-            .map_err(to_retriable_da_error)?;
+        .await
+        .map_err(to_retriable_da_error)?;
         let block_hash = tx::then_in_finalized_block(tx_progress)
             .await
             .map_err(to_retriable_da_error)?

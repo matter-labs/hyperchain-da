@@ -1,9 +1,11 @@
-use crate::{client::CelestiaClient};
-
+use crate::client::CelestiaClient;
 
 use zksync_da_client::DataAvailabilityClient;
 use zksync_node_framework::implementations::resources::da_client::DAClientResource;
-use zksync_node_framework::{IntoContext, wiring_layer::{WiringError, WiringLayer}};
+use zksync_node_framework::{
+    wiring_layer::{WiringError, WiringLayer},
+    IntoContext,
+};
 
 #[derive(Debug, Default)]
 pub struct CelestiaWiringLayer;
@@ -12,7 +14,6 @@ pub struct CelestiaWiringLayer;
 pub struct Output {
     pub client: DAClientResource,
 }
-
 
 #[async_trait::async_trait]
 impl WiringLayer for CelestiaWiringLayer {
