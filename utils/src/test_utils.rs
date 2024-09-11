@@ -8,6 +8,12 @@ use std::{
 
 pub struct EnvMutex(Mutex<()>);
 
+impl Default for EnvMutex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EnvMutex {
     /// Creates a new mutex. Separate mutexes can be used for changing env vars that do not intersect
     /// (e.g., env vars for different config).

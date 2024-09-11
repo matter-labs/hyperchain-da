@@ -64,7 +64,7 @@ impl ProtoRepr for proto::AvailConfig {
                 app_id: this.app_id,
                 timeout: Some(this.timeout as u64),
                 max_retries: Some(this.max_retries as u64),
-                gas_relay_mode: Some(this.gas_relay_mode as bool),
+                gas_relay_mode: Some(this.gas_relay_mode),
                 gas_relay_api_url: this.gas_relay_api_url.clone(),
                 gas_relay_api_key: this.gas_relay_api_key.clone(),
             }),

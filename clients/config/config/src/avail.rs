@@ -42,13 +42,13 @@ mod tests {
     ) -> AvailConfig {
         AvailConfig {
             // if api_node_url is of length 0, then set it None
-            api_node_url: if api_node_url.len() == 0 {
+            api_node_url: if api_node_url.is_empty() {
                 None
             } else {
                 Some(api_node_url.to_string())
             },
             bridge_api_url: bridge_api_url.to_string(),
-            seed: if seed.len() == 0 {
+            seed: if seed.is_empty() {
                 None
             } else {
                 Some(seed.to_string())
@@ -57,12 +57,12 @@ mod tests {
             timeout,
             max_retries,
             gas_relay_mode,
-            gas_relay_api_url: if gas_relay_api_url.len() == 0 {
+            gas_relay_api_url: if gas_relay_api_url.is_empty() {
                 None
             } else {
                 Some(gas_relay_api_url.to_string())
             },
-            gas_relay_api_key: if gas_relay_api_key.len() == 0 {
+            gas_relay_api_key: if gas_relay_api_key.is_empty() {
                 None
             } else {
                 Some(gas_relay_api_key.to_string())

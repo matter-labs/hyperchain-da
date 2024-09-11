@@ -13,12 +13,8 @@ use bytes::Bytes;
 use da_config::avail::AvailConfig;
 use da_utils::proto_config_parser::try_parse_proto_config;
 use serde::Deserialize;
-use serde_json::Map;
 use std::sync::Arc;
-use std::{
-    borrow::Borrow,
-    fmt::{Debug, Formatter},
-};
+use std::fmt::{Debug, Formatter};
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
 use zksync_da_client::{
     types::{self, DAError, DispatchResponse, InclusionData},
@@ -120,14 +116,14 @@ impl AvailClient {
             .map_err(to_non_retriable_da_error)?;
 
         let mnemonic =
-            Mnemonic::parse(&config.seed.clone().unwrap()).map_err(to_non_retriable_da_error)?;
+            Mnemonic::parse(config.seed.clone().unwrap()).map_err(to_non_retriable_da_error)?;
 
         let keypair = Keypair::from_phrase(&mnemonic, None).map_err(to_non_retriable_da_error)?;
 
         let api_client = reqwest::Client::new();
 
         Ok(Self {
-            config: config.into(),
+            config,
             client: Some(Arc::new(client)),
             api_client: api_client.into(),
             keypair: keypair.into(),
