@@ -33,7 +33,6 @@ use zksync_env_config::FromEnv;
 #[derive(Clone)]
 pub struct AvailClient {
     config: AvailConfig,
-    client: Option<Arc<AvailSubxtClient>>,
     api_client: Arc<reqwest::Client>,
     keypair: Option<Keypair>,
 }
@@ -102,16 +101,10 @@ impl AvailClient {
         if config.gas_relay_mode {
             return Ok(Self {
                 config,
-                client: None,
                 api_client: reqwest::Client::new().into(),
                 keypair: None,
             });
         }
-
-        // these unwraps are safe because we validate in config
-        let client = AvailSubxtClient::new(config.api_node_url.clone().unwrap())
-            .await
-            .map_err(to_non_retriable_da_error)?;
 
         let mnemonic =
             Mnemonic::parse(config.seed.clone().unwrap()).map_err(to_non_retriable_da_error)?;
@@ -122,7 +115,6 @@ impl AvailClient {
 
         Ok(Self {
             config,
-            client: Some(Arc::new(client)),
             api_client: api_client.into(),
             keypair: keypair.into(),
         })
