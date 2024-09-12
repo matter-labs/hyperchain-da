@@ -27,3 +27,5 @@ avail-core = { git = "https://github.com/availproject/avail-core", tag = "core-n
 subxt-signer = { version = "0.34" }
 reqwest = { version = "0.12" }
 alloy = { version = "0.1", features = ["full"] }
+serde_json = "1"
+bytes = "1"

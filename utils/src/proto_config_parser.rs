@@ -6,7 +6,9 @@ pub fn try_parse_proto_config<T: ProtoRepr>() -> Result<Option<T::Type>, anyhow:
 
     while let Some(arg) = args.next() {
         if arg.eq_ignore_ascii_case("--config-path") {
-            let path = args.next().ok_or_else(|| anyhow::anyhow!("No value for --config-path"))?;
+            let path = args
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("No value for --config-path"))?;
 
             let yaml = std::fs::read_to_string(path.clone()).with_context(|| path)?;
 

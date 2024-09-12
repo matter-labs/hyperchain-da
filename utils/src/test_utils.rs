@@ -8,6 +8,12 @@ use std::{
 
 pub struct EnvMutex(Mutex<()>);
 
+impl Default for EnvMutex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EnvMutex {
     /// Creates a new mutex. Separate mutexes can be used for changing env vars that do not intersect
     /// (e.g., env vars for different config).
@@ -37,9 +43,13 @@ impl Drop for EnvMutexGuard<'_> {
     fn drop(&mut self) {
         for (env_name, value) in mem::take(&mut self.redefined_vars) {
             if let Some(value) = value {
-                unsafe { env::set_var(env_name, value); }
+                unsafe {
+                    env::set_var(env_name, value);
+                }
             } else {
-                unsafe { env::remove_var(env_name); }
+                unsafe {
+                    env::remove_var(env_name);
+                }
             }
         }
     }

@@ -1,5 +1,5 @@
-use da_config::celestia::CelestiaConfig;
 use async_trait::async_trait;
+use da_config::celestia::CelestiaConfig;
 use std::fmt::{Debug, Formatter};
 
 use zksync_da_client::{types, DataAvailabilityClient};
@@ -27,7 +27,7 @@ impl CelestiaClient {
 impl DataAvailabilityClient for CelestiaClient {
     async fn dispatch_blob(
         &self,
-        _: u32, // batch_number
+        _: u32,     // batch_number
         _: Vec<u8>, // data
     ) -> Result<types::DispatchResponse, types::DAError> {
         todo!()
@@ -43,7 +43,7 @@ impl DataAvailabilityClient for CelestiaClient {
         Box::new(self.clone())
     }
 
-    fn blob_size_limit(&self) ->  Option<usize> {
+    fn blob_size_limit(&self) -> Option<usize> {
         Some(1973786)
     }
 }

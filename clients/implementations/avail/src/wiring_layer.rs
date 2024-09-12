@@ -9,6 +9,12 @@ use zksync_node_framework::{
 #[derive(Debug)]
 pub struct AvailWiringLayer {}
 
+impl Default for AvailWiringLayer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AvailWiringLayer {
     pub fn new() -> Self {
         Self {}
