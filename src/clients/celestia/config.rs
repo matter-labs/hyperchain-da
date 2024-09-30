@@ -6,7 +6,7 @@ use zksync_env_config::{FromEnv, envy_load};
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct CelestiaConfig {
     pub api_node_url: String,
-    pub private_key: String,
+    pub auth_token: String,
     pub namespace: String,
 }
 
@@ -31,7 +31,7 @@ mod tests {
     ) -> CelestiaConfig {
         CelestiaConfig {
             api_node_url: api_node_url.to_string(),
-            private_key: pk.to_string(),
+            auth_token: pk.to_string(),
             namespace: namespace.to_string(),
         }
     }
@@ -41,7 +41,7 @@ mod tests {
         let mut lock = MUTEX.lock();
         let config = r#"
             CELESTIA_CLIENT_API_NODE_URL="localhost:12345"
-            CELESTIA_CLIENT_PRIVATE_KEY="0xf55baf7c0e4e33b1d78fbf52f069c426bc36cff1aceb9bc8f45d14c07f034d73"
+            CELESTIA_CLIENT_AUTH_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdfQ.gQoHC03aTDFciDmOtHpe2IBtYu0qavOUlOgZd3J5POI"
             CELESTIA_CLIENT_NAMESPACE="0x1234567890abcdef"
         "#;
         lock.set_env(config);
@@ -49,7 +49,7 @@ mod tests {
         assert_eq!(
             actual,
             expected_celestia_da_layer_config(
-                "0xf55baf7c0e4e33b1d78fbf52f069c426bc36cff1aceb9bc8f45d14c07f034d73",
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdfQ.gQoHC03aTDFciDmOtHpe2IBtYu0qavOUlOgZd3J5POI",
                 "localhost:12345",
                 "0x1234567890abcdef"
             )

@@ -12,7 +12,7 @@ use serde::{Serialize, Deserialize};
 use anyhow::anyhow;
 
 use celestia_rpc::{BlobClient, HeaderClient, Client};
-use celestia_types::{Blob, nmt::{Namespace, NamespaceProof, NamespacedHash}, blob::Commitment, hash::Hash};
+use celestia_types::{Blob, nmt::{Namespace, NamespaceProof, NamespacedHash}, blob::Commitment, hash::Hash, TxConfig};
 use nmt_rs::{
     TmSha2Hasher,
     simple_merkle::{tree::MerkleTree, db::MemDb, proof::Proof},
@@ -22,7 +22,7 @@ use nmt_rs::{
 pub struct CelestiaClient {
     light_node_url: String,
     namespace: String,
-    private_key: String,
+    auth_token: String,
     client: Arc<Client>,
 }
 
@@ -30,13 +30,13 @@ impl CelestiaClient {
     pub async fn new() -> anyhow::Result<Self> {
         let config = CelestiaConfig::from_env()?;
 
-        let client = Client::new(&config.api_node_url, Some(&config.private_key))
+        let client = Client::new(&config.api_node_url, Some(&config.auth_token))
             .await
             .expect("could not create client");
 
         Ok(Self {
             light_node_url: config.api_node_url,
-            private_key: config.private_key,
+            auth_token: config.auth_token,
             client: Arc::new(client),
             namespace: config.namespace,
         })
@@ -62,7 +62,13 @@ impl DataAvailabilityClient for CelestiaClient {
         let blob = Blob::new(namespace, data)
             .map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
         let commitment = blob.commitment.clone();
-        let height = self.client.blob_submit(&[blob], None.into())
+        let height = self.client.blob_submit(&[blob], TxConfig{
+            signer_address: None,
+            key_name: None,
+            gas_price: None,
+            gas: None,
+            fee_granter_address: None,
+        })
             .await
             .map_err(|e| types::DAError { error: e.into(), is_transient: false })?;
         let blob_id = BlobId {
