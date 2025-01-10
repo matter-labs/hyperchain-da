@@ -1,8 +1,8 @@
 # hyperchain-da
 Common clients and contracts for DA solutions for ZK chains.
 
-# Clients
-The clients from this repository are going to be imported by the [zksync-era](https://github.com/matter-labs/zksync-era) and used by the DataAvailabilityDispatcher component.
+> [!WARNING]  
+> This repository has been archived. Development has been moved to the [zksync-era](https://github.com/matter-labs/zksync-era/tree/main/core/node/da_clients) repository. Please use it instead.
 
 # Clients
 The clients from this repository are going to be imported by the [zksync-era](https://github.com/matter-labs/zksync-era) and used by the DataAvailabilityDispatcher component.
