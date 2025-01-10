@@ -4,6 +4,9 @@ Common clients and contracts for DA solutions for ZK chains.
 # Clients
 The clients from this repository are going to be imported by the [zksync-era](https://github.com/matter-labs/zksync-era) and used by the DataAvailabilityDispatcher component.
 
+# Clients
+The clients from this repository are going to be imported by the [zksync-era](https://github.com/matter-labs/zksync-era) and used by the DataAvailabilityDispatcher component.
+
 - It is assumed that the DA client is only serving as a connector between the ZK chain's sequencer and the DA layer. 
 - The DA client is not supposed to be a standalone application, but rather a library that is used by the sequencer.
 - The logic of the retries is implemented in the sequencer, not in the DA clients.
