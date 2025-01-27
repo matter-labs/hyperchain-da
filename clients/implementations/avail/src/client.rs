@@ -1,15 +1,26 @@
-use da_config::avail::AvailConfig;
+use alloy::sol_types::SolValue;
 use alloy::{
     primitives::{B256, U256},
     sol,
 };
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use avail_core::AppId;
 use avail_subxt::{
     api::{self},
     AvailClient as AvailSubxtClient,
 };
-use serde::Deserialize;
+use avail_subxt::{
+    api::{
+        data_availability::calls::types::SubmitData,
+        runtime_types::bounded_collections::bounded_vec::BoundedVec,
+    },
+    tx,
+};
+use bytes::Bytes;
+use da_config::avail::AvailConfig;
+use da_utils::proto_config_parser::try_parse_proto_config;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use subxt_signer::{bip39::Mnemonic, sr25519::Keypair};
@@ -18,38 +29,46 @@ use zksync_da_client::{
     DataAvailabilityClient,
 };
 use zksync_env_config::FromEnv;
-use da_utils::proto_config_parser::try_parse_proto_config;
-
-use anyhow::{anyhow, Result};
-use avail_subxt::{
-    api::{
-        data_availability::calls::types::SubmitData,
-        runtime_types::bounded_collections::bounded_vec::BoundedVec,
-    },
-    tx,
-};
 
 #[derive(Clone)]
 pub struct AvailClient {
     config: AvailConfig,
-    client: Arc<AvailSubxtClient>,
     api_client: Arc<reqwest::Client>,
-    keypair: Keypair,
+    keypair: Option<Keypair>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct BridgeAPIResponse {
-    blob_root: B256,
-    bridge_root: B256,
-    data_root_index: U256,
-    data_root_proof: Vec<B256>,
-    leaf: B256,
-    leaf_index: U256,
-    leaf_proof: Vec<B256>,
-    range_hash: B256,
+    blob_root: Option<B256>,
+    bridge_root: Option<B256>,
+    data_root_index: Option<U256>,
+    data_root_proof: Option<Vec<B256>>,
+    leaf: Option<B256>,
+    leaf_index: Option<U256>,
+    leaf_proof: Option<Vec<B256>>,
+    range_hash: Option<B256>,
+    error: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct GasRelayAPISubmissionResponse {
+    submission_id: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct GasRelayAPIStatusResponse {
+    submission: GasRelayAPISubmission,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct GasRelayAPISubmission {
+    block_hash: Option<B256>,
+    extrinsic_index: Option<u64>,
 }
 
 sol! {
+    #[derive(Deserialize, Serialize, Debug)]
     struct MerkleProofInput {
         // proof of inclusion for the data root
         bytes32[] dataRootProof;
@@ -79,11 +98,17 @@ impl AvailClient {
             None => AvailConfig::from_env()?,
         };
 
-        let client = AvailSubxtClient::new(config.api_node_url.clone())
-            .await
-            .map_err(to_non_retriable_da_error)?;
+        if config.gas_relay_mode {
+            return Ok(Self {
+                config,
+                api_client: reqwest::Client::new().into(),
+                keypair: None,
+            });
+        }
 
-        let mnemonic = Mnemonic::parse(&config.seed).map_err(to_non_retriable_da_error)?;
+        // these unwraps are fine because we have already validated the config
+        let mnemonic =
+            Mnemonic::parse(config.seed.clone().unwrap()).map_err(to_non_retriable_da_error)?;
 
         let keypair = Keypair::from_phrase(&mnemonic, None).map_err(to_non_retriable_da_error)?;
 
@@ -91,9 +116,8 @@ impl AvailClient {
 
         Ok(Self {
             config,
-            client: client.into(),
             api_client: api_client.into(),
-            keypair,
+            keypair: keypair.into(),
         })
     }
 }
@@ -105,6 +129,13 @@ pub fn to_non_retriable_da_error(error: impl Into<anyhow::Error>) -> types::DAEr
     }
 }
 
+pub fn to_retriable_da_error(error: impl Into<anyhow::Error>) -> types::DAError {
+    DAError {
+        error: error.into(),
+        is_retriable: true,
+    }
+}
+
 #[async_trait]
 impl DataAvailabilityClient for AvailClient {
     async fn dispatch_blob(
@@ -112,25 +143,98 @@ impl DataAvailabilityClient for AvailClient {
         _batch_number: u32,
         data: Vec<u8>,
     ) -> Result<DispatchResponse, DAError> {
+        if self.config.gas_relay_mode {
+            let submit_url = format!(
+                "{}/user/submit_raw_data?token=ethereum",
+                self.config.gas_relay_api_url.clone().unwrap()
+            );
+            // send the data to the gas relay
+            let submit_response = self
+                .api_client
+                .post(&submit_url)
+                .body(Bytes::from(data))
+                .header("Content-Type", "text/plain")
+                .header(
+                    "Authorization",
+                    self.config.gas_relay_api_key.clone().unwrap(),
+                )
+                .send()
+                .await
+                .map_err(to_retriable_da_error)?;
+            let submit_response_text = submit_response
+                .text()
+                .await
+                .map_err(to_retriable_da_error)?;
+            let submit_response_struct: GasRelayAPISubmissionResponse =
+                serde_json::from_str(&submit_response_text.clone())
+                    .map_err(to_retriable_da_error)?;
+            let status_url = format!(
+                "{}/user/get_submission_info?submission_id={}",
+                self.config.gas_relay_api_url.clone().unwrap(),
+                submit_response_struct.submission_id
+            );
+            let mut retries = 0;
+            let mut status_response: reqwest::Response;
+            let mut status_response_text: String;
+            let mut status_response_struct: GasRelayAPIStatusResponse;
+            loop {
+                tokio::time::sleep(tokio::time::Duration::from_secs(u64::try_from(40).unwrap()))
+                    .await; // usually takes 20s to finalize
+                status_response = self
+                    .api_client
+                    .get(&status_url)
+                    .header(
+                        "Authorization",
+                        self.config.gas_relay_api_key.clone().unwrap(),
+                    )
+                    .send()
+                    .await
+                    .map_err(to_retriable_da_error)?;
+                status_response_text = status_response
+                    .text()
+                    .await
+                    .map_err(to_retriable_da_error)?;
+                status_response_struct =
+                    serde_json::from_str(&status_response_text).map_err(to_retriable_da_error)?;
+                if status_response_struct.submission.block_hash.is_some() {
+                    break;
+                }
+                retries += 1;
+                if retries > self.config.max_retries {
+                    return Err(to_retriable_da_error(anyhow!(
+                        "Failed to get gas relay status"
+                    )));
+                }
+            }
+            return Ok(DispatchResponse {
+                blob_id: format!(
+                    "{:x}:{}",
+                    status_response_struct.submission.block_hash.unwrap(),
+                    status_response_struct.submission.extrinsic_index.unwrap()
+                ),
+            });
+        }
+        let client = AvailSubxtClient::new(self.config.api_node_url.clone().unwrap())
+            .await
+            .map_err(to_retriable_da_error)?;
         let call = api::tx()
             .data_availability()
             .submit_data(BoundedVec(data.clone()));
         let tx_progress = tx::send(
-            &self.client,
+            &client,
             &call,
-            &self.keypair,
-            AppId(self.config.app_id),
+            &self.keypair.clone().unwrap(),
+            AppId(self.config.app_id.unwrap()),
         )
+        .await
+        .map_err(to_retriable_da_error)?;
+        let block_hash = tx::then_in_finalized_block(tx_progress)
             .await
-            .map_err(to_non_retriable_da_error)?;
-        let block_hash = tx::then_in_block(tx_progress)
-            .await
-            .map_err(to_non_retriable_da_error)?
+            .map_err(to_retriable_da_error)?
             .block_hash();
 
         // Retrieve the data from the block hash
-        let block = self
-            .client
+        let block = client
             .blocks()
             .at(block_hash)
             .await
@@ -161,64 +265,68 @@ impl DataAvailabilityClient for AvailClient {
         }
 
         Ok(DispatchResponse {
-            blob_id: format!("{}:{}", block_hash, tx_idx),
+            blob_id: format!("{:x}:{}", block_hash, tx_idx),
         })
     }
 
     async fn get_inclusion_data(
         &self,
-        _blob_id: &str,
+        blob_id: &str,
     ) -> Result<Option<types::InclusionData>, types::DAError> {
-        // let (block_hash, tx_idx) = blob_id.split_once(':').ok_or_else(|| DAError {
-        //     error: anyhow!("Invalid blob ID format"),
-        //     is_retriable: false,
-        // })?;
-        // let url = format!(
-        //     "{}/eth/proof/{}?index={}",
-        //     self.config.bridge_api_url, block_hash, tx_idx
-        // );
-        // let mut response: Response;
-        // let mut retries = 0usize;
-        // loop {
-        //     response = self
-        //         .api_client
-        //         .get(&url)
-        //         .send()
-        //         .await
-        //         .map_err(|e| self.to_non_retriable_da_error(e))?;
-        //     if response.status().is_success() {
-        //         break;
-        //     }
-        //     sleep(Duration::from_secs(
-        //         u64::try_from(self.config.timeout).unwrap(),
-        //     ))
-        //     .await;
-        //     retries += 1;
-        //     if retries > self.config.max_retries {
-        //         return Err(DAError {
-        //             error: anyhow!("Failed to get inclusion data"),
-        //             is_retriable: true,
-        //         });
-        //     }
-        // }
-        // let bridge_api_data: BridgeAPIResponse = response
-        //     .json()
-        //     .await
-        //     .map_err(|e| self.to_non_retriable_da_error(e))?;
-        // let attestation_data: MerkleProofInput = MerkleProofInput {
-        //     dataRootProof: bridge_api_data.data_root_proof,
-        //     leafProof: bridge_api_data.leaf_proof,
-        //     rangeHash: bridge_api_data.range_hash,
-        //     dataRootIndex: bridge_api_data.data_root_index,
-        //     blobRoot: bridge_api_data.blob_root,
-        //     bridgeRoot: bridge_api_data.bridge_root,
-        //     leaf: bridge_api_data.leaf,
-        //     leafIndex: bridge_api_data.leaf_index,
-        // };
-        // Ok(Some(InclusionData {
-        //     data: attestation_data.abi_encode(),
-        // }))
-        Ok(Some(InclusionData { data: vec![] }))
+        let (block_hash, tx_idx) = blob_id.split_once(':').ok_or_else(|| DAError {
+            error: anyhow!("Invalid blob ID format"),
+            is_retriable: false,
+        })?;
+
+        let url = format!(
+            "{}/eth/proof/{}?index={}",
+            self.config.bridge_api_url, block_hash, tx_idx
+        );
+        let mut response: reqwest::Response;
+        let mut retries = self.config.max_retries;
+        let mut response_text: String;
+        let mut bridge_api_data: BridgeAPIResponse;
+        loop {
+            response = self
+                .api_client
+                .get(&url)
+                .send()
+                .await
+                .map_err(to_retriable_da_error)?;
+            response_text = response.text().await.unwrap();
+
+            if let Ok(data) = serde_json::from_str::<BridgeAPIResponse>(&response_text) {
+                bridge_api_data = data;
+                if bridge_api_data.error.is_none() {
+                    break;
+                }
+            }
+
+            tokio::time::sleep(tokio::time::Duration::from_secs(
+                u64::try_from(480).unwrap(),
+            ))
+            .await; // usually takes 15 mins on Hex
+            retries += 1;
+            if retries > self.config.max_retries {
+                return Err(DAError {
+                    error: anyhow!("Failed to get inclusion data"),
+                    is_retriable: true,
+                });
+            }
+        }
+        let attestation_data: MerkleProofInput = MerkleProofInput {
+            dataRootProof: bridge_api_data.data_root_proof.unwrap(),
+            leafProof: bridge_api_data.leaf_proof.unwrap(),
+            rangeHash: bridge_api_data.range_hash.unwrap(),
+            dataRootIndex: bridge_api_data.data_root_index.unwrap(),
+            blobRoot: bridge_api_data.blob_root.unwrap(),
+            bridgeRoot: bridge_api_data.bridge_root.unwrap(),
+            leaf: bridge_api_data.leaf.unwrap(),
+            leafIndex: bridge_api_data.leaf_index.unwrap(),
+        };
+        Ok(Some(InclusionData {
+            data: attestation_data.abi_encode(),
+        }))
     }
 
     fn clone_boxed(&self) -> Box<dyn DataAvailabilityClient> {
